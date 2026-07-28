@@ -255,7 +255,7 @@ describe("sanitizePublicText", () => {
     }
   });
 
-  it("redacts an OS-provided one-character username only at token boundaries", () => {
+  it("preserves ordinary prose for an OS-provided one-character username", () => {
     const originalUsername = process.env.USERNAME;
     const originalUser = process.env.USER;
     mockUserInfo.mockReturnValue({ username: "a" });
@@ -265,10 +265,62 @@ describe("sanitizePublicText", () => {
     try {
       expect(
         sanitizePublicText(
-          "a catalog review is approved",
+          "review by a maintainer with a 4xx error",
           "D:\\code\\local-agent-mcp\\fixtures\\public-demo",
         ),
-      ).toBe("<local-username> catalog review is approved");
+      ).toBe("review by a maintainer with a 4xx error");
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
+  it.each([
+    "username: a",
+    "user=a",
+    "account: a",
+    "owner=a",
+  ])("neutralizes an identity-labelled one-character username: %s", (value) => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "a" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      expect(sanitizePublicText(value, "D:\\demo")).toBe("[REDACTED]");
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
+  it("protects an exact one-character username and URL or path provenance", () => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "a" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      expect(sanitizePublicText("a", "D:\\Users\\a\\demo")).toBe(
+        "<local-username>",
+      );
+      expect(
+        sanitizePublicText("D:\\Users\\a\\demo\\secret.txt", "D:\\demo"),
+      ).toBe("[REDACTED]");
+      expect(
+        sanitizePublicText("https://a.example.test/review", "D:\\Users\\a\\demo"),
+      ).toBe("[REDACTED]");
+      expect(
+        sanitizePublicText("https://a@example.test/review", "D:\\demo"),
+      ).toBe("[REDACTED]");
     } finally {
       mockUserInfo.mockReset().mockReturnValue({ username: "" });
       if (originalUsername === undefined) delete process.env.USERNAME;

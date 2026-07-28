@@ -115,7 +115,7 @@ describe("auditManifest", () => {
     expect(() => auditManifest(reordered)).toThrow();
   });
 
-  it("rejects the mocked one-character OS username at token boundaries", () => {
+  it("allows ordinary prose for the mocked one-character OS username", () => {
     const originalUsername = process.env.USERNAME;
     const originalUser = process.env.USER;
     mockUserInfo.mockReturnValue({ username: "a" });
@@ -124,7 +124,36 @@ describe("auditManifest", () => {
 
     try {
       const value = validManifest();
-      value.comparison.codex.finalMessage = "review by a today";
+      value.comparison.codex.finalMessage = "review by a maintainer with a 4xx error";
+      expect(() => auditManifest(value)).not.toThrow();
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "fixture-local-user" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
+  it.each([
+    "a",
+    "username: a",
+    "user=a",
+    "account: a",
+    "owner=a",
+    "D:\\Users\\a\\demo\\secret.txt",
+    "https://a.example.test/review",
+    "https://a@example.test/review",
+  ])("rejects one-character username provenance: %s", (finalMessage) => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "a" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      const value = validManifest();
+      value.comparison.codex.finalMessage = finalMessage;
       expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
     } finally {
       mockUserInfo.mockReset().mockReturnValue({ username: "fixture-local-user" });

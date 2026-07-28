@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { AgentCompareResult } from "../../src/tools/agent-compare.js";
 import { projectComparison } from "../../src/publication/projector.js";
+
+const { mockUserInfo } = vi.hoisted(() => ({
+  mockUserInfo: vi.fn(() => ({ username: "" })),
+}));
+
+vi.mock("node:os", () => ({ userInfo: mockUserInfo }));
 
 function privateComparison(): AgentCompareResult {
   return {
@@ -123,5 +129,34 @@ describe("projectComparison", () => {
     expect(json).not.toMatch(
       /stderr:|sk-proj-|Authorization:|secret-token|D:\\\\Users|\/etc\/hosts|alice|bob|ses_private|019f2918|ghp_|server\\\\share/,
     );
+  });
+
+  it("preserves ordinary articles in a projected Agent message for a one-character username", () => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "a" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      const comparison = privateComparison();
+      comparison.codex.result = {
+        ...comparison.codex.result!,
+        finalMessage: "Review by a maintainer with a 4xx error.",
+      };
+
+      const output = projectComparison(comparison, "D:\\Users\\a\\demo");
+
+      expect(output.codex.finalMessage).toBe(
+        "Review by a maintainer with a 4xx error.",
+      );
+      expect(output.codex.finalMessage).not.toContain("<local-username>");
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
   });
 });

@@ -54,11 +54,34 @@ function localUsernames(privateRoot: string): string[] {
 }
 
 function redactUsername(text: string, username: string): string {
-  const token = new RegExp(
+  if (username.length === 1) {
+    return text === username ? "<local-username>" : text;
+  }
+
+  const token = usernameTokenPattern(username);
+  return text.replace(token, "$1<local-username>");
+}
+
+function usernameTokenPattern(username: string): RegExp {
+  return new RegExp(
     `(^|[^\\p{L}\\p{N}_])${escapeRegExp(username)}(?![\\p{L}\\p{N}_])`,
     "giu",
   );
-  return text.replace(token, "$1<local-username>");
+}
+
+function hasUsernameToken(text: string, username: string): boolean {
+  return usernameTokenPattern(username).test(text);
+}
+
+function hasLabelledUsernameValue(line: string, usernames: string[]): boolean {
+  const detectionView = line.replace(ORDINARY_HTTP_URL, "");
+  return usernames.some((username) => {
+    const labelledValue = new RegExp(
+      `(?:^|[^\\p{L}\\p{N}_])["']?(?:username|user|account|owner)["']?\\s*[:=]\\s*["']?${escapeRegExp(username)}(?=["']?(?:$|[^\\p{L}\\p{N}_]))`,
+      "iu",
+    );
+    return labelledValue.test(detectionView);
+  });
 }
 
 function hasAbsoluteFilesystemPath(value: string): boolean {
@@ -127,7 +150,7 @@ function hasFilesystemUrlData(component: string): boolean {
 function hasSensitiveHttpUrl(text: string, usernames: string[]): boolean {
   for (const match of text.matchAll(ORDINARY_HTTP_URL)) {
     const rawUrl = match[0];
-    if (usernames.some((username) => redactUsername(rawUrl, username) !== rawUrl)) {
+    if (usernames.some((username) => hasUsernameToken(rawUrl, username))) {
       return true;
     }
 
@@ -187,6 +210,7 @@ function neutralizeSensitiveLines(text: string, usernames: string[]): string {
     LOCAL_FILE_URI.test(line) ||
     hasAbsoluteLocalPath(line) ||
     hasSensitiveHttpUrl(line, usernames) ||
+    hasLabelledUsernameValue(line, usernames) ||
     SESSION_OR_THREAD_KEY.test(line) ||
     hasSensitiveLabelsOutsideHttpUrls(line)
       ? "[REDACTED]"
