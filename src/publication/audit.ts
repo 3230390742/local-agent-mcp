@@ -2,41 +2,43 @@ import { readFile } from "node:fs/promises";
 import { userInfo } from "node:os";
 import { canonicalJson, sha256Text } from "./canonical.js";
 import { sanitizePublicText } from "./sanitize.js";
-import { publicationReceiptSchema, publicDemoManifestSchema, type PublicationReceipt } from "./schema.js";
+import {
+  PUBLIC_COMPARISON_NOTE,
+  publicationReceiptSchema,
+  publicDemoManifestSchema,
+  type PublicationReceipt,
+} from "./schema.js";
 
 const FORBIDDEN_LABELS = [
   /\b(?:raw[-_\s]?stderr|stderr)\b/i,
   /\b(?:unreviewed\s+)?prompt(?:[._-]?(?:input|text|content|value|preview))?\b/i,
 ];
-const CREDENTIAL_SHAPE = /(?:^|[^\p{L}\p{N}_])(?:key|api[_-]?key|secret|password|passwd|token|provider)\s*[:=]\s*[^\s,}]+/iu;
+const CREDENTIAL_SHAPE = /(?:^|[^\p{L}\p{N}_])(?:key|api[_-]?key|secret|password|passwd|token|provider|credentials?)\s*[:=]\s*[^\s,}]+/iu;
+const HTTP_URL = /\bhttps?:\/\/[^\s"'<>|]+/gi;
 
-function shortUsernameRedactionOnly(value: string, sanitized: string): boolean {
-  const usernames = new Set<string>();
-  try { usernames.add(userInfo().username); } catch { /* unavailable */ }
-  if (process.env.USERNAME) usernames.add(process.env.USERNAME);
-  if (process.env.USER) usernames.add(process.env.USER);
-  let expected = value;
-  for (const username of usernames) {
-    if (username.length !== 1) continue;
-    expected = expected.replace(new RegExp(`(^|[^\\p{L}\\p{N}_])${username}(?![\\p{L}\\p{N}_])`, "giu"), "$1<local-username>");
-  }
-  return expected === sanitized;
+function labelsOutsideHttpUrls(value: string): string {
+  return value.replace(HTTP_URL, "");
+}
+
+function isSchemaLockedComparisonNote(value: string, path: string[]): boolean {
+  return path.length === 2 && path[0] === "comparison" && path[1] === "note" && value === PUBLIC_COMPARISON_NOTE;
 }
 
 function assertPublicStrings(value: unknown, path: string[] = []): void {
   if (typeof value === "string") {
+    const isLockedNote = isSchemaLockedComparisonNote(value, path);
     let currentUsername = "";
     try { currentUsername = userInfo().username; } catch { /* unavailable */ }
-    if (currentUsername && value.trim() === currentUsername) {
+    if (!isLockedNote && currentUsername && value.trim() === currentUsername) {
       throw new Error("public artifact contains forbidden data");
     }
     const sanitized = sanitizePublicText(value, "");
-    if (sanitized !== value && !shortUsernameRedactionOnly(value, sanitized)) {
+    if (!isLockedNote && sanitized !== value) {
       throw new Error("public artifact contains forbidden data");
     }
     if (
       CREDENTIAL_SHAPE.test(value) ||
-      FORBIDDEN_LABELS.some((pattern) => pattern.test(value))
+      FORBIDDEN_LABELS.some((pattern) => pattern.test(labelsOutsideHttpUrls(value)))
     ) {
       throw new Error("public artifact contains forbidden data");
     }

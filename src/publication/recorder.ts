@@ -4,13 +4,17 @@ import type { ToolContext } from "../context.js";
 import type { AgentHealthResult } from "../tools/agent-health.js";
 import type { AgentCompareInput, AgentCompareResult } from "../tools/agent-compare.js";
 import { projectComparison } from "./projector.js";
-import { publicDemoManifestSchema, type PublicDemoManifest } from "./schema.js";
+import {
+  PUBLIC_SCENARIO_PROMPT,
+  publicDemoManifestSchema,
+  type PublicDemoManifest,
+} from "./schema.js";
 import type { VerificationSummary } from "./verification.js";
 
 export const PUBLIC_SCENARIO = {
   id: "api-input-validation-review",
   title: "API 输入校验审查",
-  prompt: "Review the input validation in this small API fixture. Identify concrete edge cases and recommend bounded validation. Do not modify files.",
+  prompt: PUBLIC_SCENARIO_PROMPT,
   workspaceLabel: "fixtures/public-demo",
   mode: "read_only",
 } as const;

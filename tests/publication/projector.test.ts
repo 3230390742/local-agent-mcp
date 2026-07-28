@@ -78,7 +78,9 @@ describe("projectComparison", () => {
     expect(json).not.toMatch(
       /D:\\\\Users|threadId|sessionId|events|type secret\.env|ses_private|Bearer private/,
     );
-    expect(output.note).toContain("without ranking");
+    expect(output.note).toBe(
+      "Results are shown without ranking; model output is not a benchmark.",
+    );
   });
 
   it("replaces every execution error with a fixed public summary", () => {

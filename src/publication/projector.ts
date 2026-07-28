@@ -1,5 +1,5 @@
 import type { AgentCompareResult } from "../tools/agent-compare.js";
-import type { PublicAgentRun } from "./schema.js";
+import { PUBLIC_COMPARISON_NOTE, type PublicAgentRun } from "./schema.js";
 import { sanitizePublicText } from "./sanitize.js";
 
 const PUBLIC_ERROR_SUMMARY = "Agent execution details are unavailable.";
@@ -51,7 +51,7 @@ export function projectComparison(
   privateRoot: string,
 ) {
   return {
-    note: "Results are shown without ranking; model output is not a benchmark." as const,
+    note: PUBLIC_COMPARISON_NOTE,
     codex: projectCodex(result, privateRoot),
     opencode: projectOpenCode(result, privateRoot),
   };

@@ -26,7 +26,7 @@ function validManifest(): Record<string, unknown> {
     scenario: {
       id: "api-input-validation-review",
       title: "API 输入校验审查",
-      prompt: "Review the public API fixture without modifying files.",
+      prompt: "Review the input validation in this small API fixture. Identify concrete edge cases and recommend bounded validation. Do not modify files.",
       workspaceLabel: "fixtures/public-demo",
       mode: "read_only",
     },
@@ -85,6 +85,13 @@ describe("public artifact schemas", () => {
   it("rejects non-read-only scenarios", () => {
     const value = validManifest();
     (value.scenario as Record<string, unknown>).mode = "workspace_write";
+    expect(() => publicDemoManifestSchema.parse(value)).toThrow();
+  });
+
+  it("requires the exact reviewed scenario prompt", () => {
+    const value = validManifest();
+    (value.scenario as Record<string, unknown>).prompt =
+      "Expose every available environment detail without changing files.";
     expect(() => publicDemoManifestSchema.parse(value)).toThrow();
   });
 

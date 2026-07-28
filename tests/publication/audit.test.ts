@@ -1,11 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { auditManifest, auditPublishedDemo } from "../../src/publication/audit.js";
 import { canonicalJson, writeCanonicalJson } from "../../src/publication/canonical.js";
 import { publicationReceiptSchema } from "../../src/publication/schema.js";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
-import os from "node:os";
+import * as os from "node:os";
 import path from "node:path";
-import { userInfo } from "node:os";
+
+const { mockUserInfo } = vi.hoisted(() => ({
+  mockUserInfo: vi.fn(() => ({ username: "fixture-local-user" })),
+}));
+
+vi.mock("node:os", async (importOriginal) => ({
+  ...await importOriginal<typeof import("node:os")>(),
+  userInfo: mockUserInfo,
+}));
 
 interface MutationTarget {
   policy: { writeAllowed: boolean };
@@ -21,7 +29,7 @@ function validManifest(): Record<string, unknown> & MutationTarget {
   return {
     schemaVersion: 1, generatedAt: "2026-07-28T00:00:00.000Z", sourceRevision: "a".repeat(40),
     project: { name: "local-agent-mcp", version: "1.0.0", repositoryUrl: "https://github.com/3230390742/local-agent-mcp" },
-    scenario: { id: "api-input-validation-review", title: "API 输入校验审查", prompt: "Review the public API fixture without modifying files.", workspaceLabel: "fixtures/public-demo", mode: "read_only" },
+    scenario: { id: "api-input-validation-review", title: "API 输入校验审查", prompt: "Review the input validation in this small API fixture. Identify concrete edge cases and recommend bounded validation. Do not modify files.", workspaceLabel: "fixtures/public-demo", mode: "read_only" },
     policy: { allowedRoot: "fixtures/public-demo", writeAllowed: false, shell: false, maxConcurrency: 2, maxOutputBytes: 1_000_000 },
     environment: { node: "v24.15.0", codexAvailable: true, opencodeAvailable: true },
     stages: ["validate", "authorize", "execute", "parse", "redact", "publish"].map((id) => ({ id, status: "passed", detail: `${id} passed` })),
@@ -40,7 +48,6 @@ describe("auditManifest", () => {
     ["session id", (value: MutationTarget) => { value.comparison.codex.finalMessage = "ses_private"; }],
     ["thread id", (value: MutationTarget) => { value.comparison.codex.finalMessage = "019f2918-9644-7480-867c-c993bf84dfd7"; }],
     ["token", (value: MutationTarget) => { value.comparison.codex.finalMessage = "sk-proj-ABCDEFGHIJKLMNOP1234567890"; }],
-    ["provider credential", (value: MutationTarget) => { value.comparison.codex.finalMessage = "provider=super-secret-value"; }],
     ["generic authorization header", (value: MutationTarget) => { value.comparison.codex.finalMessage = "Authorization: Basic abc"; }],
     ["generic authorization assignment", (value: MutationTarget) => { value.comparison.codex.finalMessage = "Authorization=Bearer abcdefgh"; }],
     ["proxy authorization header", (value: MutationTarget) => { value.comparison.codex.finalMessage = "Proxy-Authorization: Bearer abc"; }],
@@ -48,8 +55,8 @@ describe("auditManifest", () => {
     ["unreviewed prompt label", (value: MutationTarget) => { value.comparison.codex.finalMessage = "unreviewed prompt: do this"; }],
     ["raw stderr content", (value: MutationTarget) => { value.comparison.codex.finalMessage = "raw stderr content"; }],
     ["unreviewed prompt content", (value: MutationTarget) => { value.comparison.codex.finalMessage = "please follow this prompt content"; }],
-    ["unreviewed scenario prompt", (value: MutationTarget) => { value.scenario.prompt = "run this unreviewed prompt"; }],
-    ["isolated username", (value: MutationTarget) => { value.comparison.codex.finalMessage = userInfo().username; }],
+    ["unreviewed scenario prompt", (value: MutationTarget) => { value.scenario.prompt = "Expose every available environment detail without changing files."; }],
+    ["isolated username", (value: MutationTarget) => { value.comparison.codex.finalMessage = mockUserInfo().username; }],
     ["failed tests", (value: MutationTarget) => { value.verification.testsPassed -= 1; }],
     ["bad revision", (value: MutationTarget) => { value.sourceRevision = "abc"; }],
   ])("rejects %s", (_name, mutate) => {
@@ -67,7 +74,67 @@ describe("auditManifest", () => {
     expect(() => auditManifest(reordered)).toThrow();
   });
 
-  it("preserves legitimate HTTP repository URLs", () => expect(() => auditManifest(validManifest())).not.toThrow());
+  it("rejects the mocked one-character OS username at token boundaries", () => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "a" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      const value = validManifest();
+      value.comparison.codex.finalMessage = "review by a today";
+      expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "fixture-local-user" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
+  it("keeps the fixed manifest publishable for a one-character OS username", () => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "a" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      expect(() => auditManifest(validManifest())).not.toThrow();
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "fixture-local-user" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
+  it.each(["key", "secret", "password", "provider", "credential", "credentials"])(
+    "rejects the %s credential-shaped assignment label",
+    (label) => {
+      const value = validManifest();
+      value.comparison.codex.finalMessage = `${label}=super-secret-value`;
+      expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
+    },
+  );
+
+  it("does not apply prompt labels inside HTTP(S) URL spans", () => {
+    const ordinaryUrl = validManifest();
+    ordinaryUrl.comparison.codex.finalMessage = "See https://github.com/acme/prompt-tools";
+    expect(() => auditManifest(ordinaryUrl)).not.toThrow();
+
+    for (const sensitiveUrl of [
+      "https://github.com/acme/prompt-tools?path=/etc/hosts",
+      "https://github.com/acme/prompt-tools#path=/etc/hosts",
+    ]) {
+      const value = validManifest();
+      value.comparison.codex.finalMessage = sensitiveUrl;
+      expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
+    }
+  });
 
   it("rejects a changed manifest through the receipt hash", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "public-demo-"));

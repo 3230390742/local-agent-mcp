@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+export const PUBLIC_SCENARIO_PROMPT =
+  "Review the input validation in this small API fixture. Identify concrete edge cases and recommend bounded validation. Do not modify files.";
+export const PUBLIC_COMPARISON_NOTE =
+  "Results are shown without ranking; model output is not a benchmark.";
+
 export const publicAgentRunSchema = z
   .object({
     agent: z.enum(["codex", "opencode"]),
@@ -32,7 +37,7 @@ export const publicDemoManifestSchema = z
       .object({
         id: z.literal("api-input-validation-review"),
         title: z.literal("API 输入校验审查"),
-        prompt: z.string().min(20).max(500),
+        prompt: z.literal(PUBLIC_SCENARIO_PROMPT),
         workspaceLabel: z.literal("fixtures/public-demo"),
         mode: z.literal("read_only"),
       })
@@ -73,9 +78,7 @@ export const publicDemoManifestSchema = z
       .length(6),
     comparison: z
       .object({
-        note: z.literal(
-          "Results are shown without ranking; model output is not a benchmark.",
-        ),
+        note: z.literal(PUBLIC_COMPARISON_NOTE),
         codex: publicAgentRunSchema,
         opencode: publicAgentRunSchema,
       })

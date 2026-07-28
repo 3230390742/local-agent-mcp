@@ -104,6 +104,14 @@ function hasAbsoluteLocalPath(line: string): boolean {
   );
 }
 
+function hasSensitiveLabelsOutsideHttpUrls(line: string): boolean {
+  const detectionView = line.replace(ORDINARY_HTTP_URL, "");
+  return (
+    STDERR_KEY.test(detectionView) ||
+    (PROMPT_KEY.test(detectionView) && !REVIEWED_PROMPT_STATUS.test(detectionView))
+  );
+}
+
 function neutralizeSensitiveLines(text: string, usernames: string[]): string {
   return text.replace(/[^\r\n]+/g, (line) =>
     AUTHORIZATION_KEY.test(line) ||
@@ -112,8 +120,7 @@ function neutralizeSensitiveLines(text: string, usernames: string[]): string {
     hasAbsoluteLocalPath(line) ||
     hasSensitiveHttpUrl(line, usernames) ||
     SESSION_OR_THREAD_KEY.test(line) ||
-    STDERR_KEY.test(line) ||
-    (PROMPT_KEY.test(line) && !REVIEWED_PROMPT_STATUS.test(line))
+    hasSensitiveLabelsOutsideHttpUrls(line)
       ? "[REDACTED]"
       : line,
   );

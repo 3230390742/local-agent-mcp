@@ -56,6 +56,7 @@ describe("recordPublicDemo", () => {
       dependencies,
     });
     expect(manifest.scenario.id).toBe("api-input-validation-review");
+    expect(manifest.scenario.prompt).toBe("Review the input validation in this small API fixture. Identify concrete edge cases and recommend bounded validation. Do not modify files.");
     expect(manifest.policy).toMatchObject({ writeAllowed: false, shell: false, maxConcurrency: 2 });
     expect(manifest.stages.map((stage) => stage.id)).toEqual(["validate", "authorize", "execute", "parse", "redact", "publish"]);
     expect(manifest.verification.testsPassed).toBe(90);
