@@ -23,7 +23,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\""
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run demo:audit",
+    "test:json": "node -e \"require('node:fs').mkdirSync('public-demo/.work',{recursive:true})\" && vitest run --reporter=json --outputFile=public-demo/.work/vitest.json",
+    "demo:record": "npm run typecheck && npm run test:json && npm run build && node dist/cli/record-public-demo.js --verification public-demo/.work/vitest.json",
+    "demo:audit": "node dist/cli/audit-public-demo.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
