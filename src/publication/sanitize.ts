@@ -12,10 +12,11 @@ const UNC_PATH_PREFIX = /\\\\/;
 const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/(?![/\s])/;
 const SESSION_OR_THREAD_KEY =
   /(?:["']?(?:session|thread)(?:[ _-]?(?:id|identifier))?["']?\s*[:=]|["']?(?:session|thread)[ _-]?(?:id|identifier)["']?\s+\S)/i;
-const STDERR_KEY = /\bstderr\s*[:=-]/i;
-const PROMPT_KEY = /\b(?:user\s+)?prompt\s*[:=-]/i;
+const STDERR_KEY =
+  /\b(?:stderr|standard error)(?:[ _-](?:output|stream))?\s*[:=-]/i;
+const PROMPT_KEY = /\b(?:(?:user|system|developer)[ _-])?prompt\s*[:=-]/i;
 const PRIVATE_KEY_BLOCK =
-  /-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z0-9]+ )?PRIVATE KEY-----|$)/g;
+  /-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END (?:[A-Z0-9]+ )?PRIVATE KEY(?: BLOCK)?-----|$)/g;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

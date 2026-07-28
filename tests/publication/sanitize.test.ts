@@ -200,6 +200,9 @@ describe("sanitizePublicText", () => {
     "stderr=internal failure",
     "stderr - internal compiler diagnostic",
     "STDERR - INTERNAL COMPILER DIAGNOSTIC",
+    "stderr output: internal compiler diagnostic",
+    "STDERR_STREAM - INTERNAL COMPILER DIAGNOSTIC",
+    "standard error: internal compiler diagnostic",
   ])(
     "neutralizes stderr-labeled line %s",
     (line) => {
@@ -212,6 +215,9 @@ describe("sanitizePublicText", () => {
     "Prompt: reset production database",
     "prompt=private input",
     "User Prompt - private request",
+    "user_prompt: private request",
+    "system-prompt=private instruction",
+    "developer prompt - private guidance",
   ])("neutralizes prompt-labeled line %s", (line) => {
     const output = sanitizePublicText(`${line}\npublic review`, "D:\\demo");
     expect(output).toBe("[REDACTED]\npublic review");
@@ -239,6 +245,32 @@ describe("sanitizePublicText", () => {
       [
         "public review before key",
         "-----BEGIN PRIVATE KEY-----",
+        "cHJpdmF0ZS1rZXktbWF0ZXJpYWw=",
+        "still private",
+      ].join("\n"),
+      "D:\\demo",
+    );
+
+    expect(output).toBe("public review before key\n[REDACTED]");
+  });
+
+  it("neutralizes a complete PGP private key block", () => {
+    const secret = [
+      "-----BEGIN PGP PRIVATE KEY BLOCK-----",
+      "cHJpdmF0ZS1rZXktbWF0ZXJpYWw=",
+      "-----END PGP PRIVATE KEY BLOCK-----",
+    ].join("\n");
+    const output = sanitizePublicText(`${secret}\npublic review`, "D:\\demo");
+
+    expect(output).toBe("[REDACTED]\npublic review");
+    expect(output).not.toContain("PGP PRIVATE KEY BLOCK");
+  });
+
+  it("neutralizes an unterminated PGP private key block through end of input", () => {
+    const output = sanitizePublicText(
+      [
+        "public review before key",
+        "-----BEGIN PGP PRIVATE KEY BLOCK-----",
         "cHJpdmF0ZS1rZXktbWF0ZXJpYWw=",
         "still private",
       ].join("\n"),
