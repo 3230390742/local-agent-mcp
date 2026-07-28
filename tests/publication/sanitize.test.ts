@@ -97,6 +97,33 @@ describe("sanitizePublicText", () => {
   });
 
   it.each([
+    "https://alice:secret@example.com/review trailing private text",
+    "HtTpS://alice@example.com/review trailing private text",
+  ])("neutralizes a URI userinfo line %s", (line) => {
+    const output = sanitizePublicText(`${line}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+    expect(output).not.toMatch(/alice|secret|@example\.com|trailing private text/i);
+  });
+
+  it.each([
+    "sessionId=opaque-123",
+    "session_id=opaque-123",
+    "session-id=opaque-123",
+    '"sessionId": "opaque-123"',
+    "threadId=thr_private_123",
+    "thread_id=thr_private_123",
+    "thread-id=thr_private_123",
+    '"threadId": "thr_private_123"',
+    "session=opaque-123",
+    "thread=thr_private_123",
+  ])("neutralizes labeled session or thread identifier %s", (label) => {
+    const output = sanitizePublicText(`${label}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+    expect(output).not.toContain("opaque-123");
+    expect(output).not.toContain("thr_private_123");
+  });
+
+  it.each([
     {
       language: "English",
       text: "Reviewed suggestion: pageSize should be an integer from 1-100.",

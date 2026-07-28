@@ -62,6 +62,17 @@ describe("projectComparison", () => {
       "D:\\Users\\alice\\demo",
     );
     const json = JSON.stringify(output);
+    const publicAgentRunKeys = [
+      "activity",
+      "agent",
+      "durationMs",
+      "errors",
+      "finalMessage",
+      "status",
+    ];
+    expect(Object.keys(output).sort()).toEqual(["codex", "note", "opencode"]);
+    expect(Object.keys(output.codex).sort()).toEqual(publicAgentRunKeys);
+    expect(Object.keys(output.opencode).sort()).toEqual(publicAgentRunKeys);
     expect(output.codex.activity).toEqual({ commands: 1, files: 0 });
     expect(output.opencode.activity).toEqual({ commands: 1, files: 0 });
     expect(json).not.toMatch(

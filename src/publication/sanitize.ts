@@ -6,6 +6,8 @@ const UNC_ABSOLUTE = /\\\\[^\s"'<>|\\]+(?:\\[^\s"'<>|\\]+)+/g;
 const SESSION_ID = /\b(?:ses_[A-Za-z0-9_-]+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/gi;
 const AUTHORIZATION_KEY = /["']?authorization["']?\s*[:=]/i;
 const ABSOLUTE_LOCAL_PATH = /[A-Za-z]:\\|\\\\|(?:^|[^A-Za-z0-9/])\/(?!\/)/i;
+const URI_USERINFO = /\bhttps?:\/\/[^\s/@]*@/i;
+const SESSION_OR_THREAD_KEY = /["']?(?:session|thread)(?:[_-]?id)?["']?\s*[:=]/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -31,7 +33,10 @@ function redactUsername(text: string, username: string): string {
 
 function neutralizeSensitiveLines(text: string): string {
   return text.replace(/[^\r\n]+/g, (line) =>
-    AUTHORIZATION_KEY.test(line) || ABSOLUTE_LOCAL_PATH.test(line)
+    AUTHORIZATION_KEY.test(line) ||
+    ABSOLUTE_LOCAL_PATH.test(line) ||
+    URI_USERINFO.test(line) ||
+    SESSION_OR_THREAD_KEY.test(line)
       ? "[REDACTED]"
       : line,
   );
