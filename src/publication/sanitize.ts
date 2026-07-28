@@ -16,6 +16,8 @@ const STDERR_KEY =
   /\b(?:stderr|standard error)(?:[ _-](?:output|stream))?\s*[:=-]/i;
 const PROMPT_KEY =
   /\b(?:(?:user|system|developer)[ _-])?prompt(?:\s*[:=-]|\s+\S)/i;
+const REVIEWED_PROMPT_STATUS =
+  /^\s*prompt(?:\s+review)?\s+(?:complete|passed|approved)\.?\s*$/i;
 const PRIVATE_KEY_BLOCK =
   /-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END (?:[A-Z0-9]+ )?PRIVATE KEY(?: BLOCK)?-----|$)/g;
 
@@ -58,7 +60,7 @@ function neutralizeSensitiveLines(text: string): string {
     hasAbsoluteLocalPath(line) ||
     SESSION_OR_THREAD_KEY.test(line) ||
     STDERR_KEY.test(line) ||
-    PROMPT_KEY.test(line)
+    (PROMPT_KEY.test(line) && !REVIEWED_PROMPT_STATUS.test(line))
       ? "[REDACTED]"
       : line,
   );

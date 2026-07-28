@@ -235,6 +235,20 @@ describe("sanitizePublicText", () => {
   });
 
   it.each([
+    "Prompt review complete.",
+    "Prompt passed.",
+    "Prompt approved",
+  ])("preserves reviewed prompt status %s", (status) => {
+    expect(sanitizePublicText(status, "D:\\demo")).toBe(status);
+  });
+
+  it("continues to neutralize a private whitespace prompt", () => {
+    expect(sanitizePublicText("Prompt private instruction", "D:\\demo")).toBe(
+      "[REDACTED]",
+    );
+  });
+
+  it.each([
     "PRIVATE KEY",
     "RSA PRIVATE KEY",
     "OPENSSH PRIVATE KEY",
