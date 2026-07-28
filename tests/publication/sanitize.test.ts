@@ -68,8 +68,30 @@ describe("sanitizePublicText", () => {
   });
 
   it.each([
+    "Authorization: Digest username=alice, realm=private, response=credential",
+    '"Authorization": "Bearer credential~with-punctuation"',
+    "Authorization: UnknownScheme username=bob credential=private-value",
+  ])("neutralizes every authorization header shape through the line", (header) => {
+    const output = sanitizePublicText(`${header}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+    expect(output).not.toMatch(
+      /authorization|digest|bearer|unknownscheme|alice|bob|credential/i,
+    );
+  });
+
+  it.each([
+    "source C:\\Users\\alice\\Private Folder\\secret name.txt trailing prose",
+    "source \\\\server\\private share\\secret name.txt trailing prose",
+    "source /opt/private folder/secret name.txt trailing prose",
+  ])("neutralizes the rest of a local-path line containing spaces", (line) => {
+    expect(sanitizePublicText(line, "D:\\demo")).toBe("[REDACTED]");
+  });
+
+  it.each([
     "http://example.com/reviews/42",
     "https://example.com/reviews/42",
+    "HTTP://example.com/reviews/42",
+    "hTtPs://example.com/reviews/42",
   ])("preserves ordinary public URL %s", (url) => {
     expect(sanitizePublicText(url, "D:\\demo")).toBe(url);
   });

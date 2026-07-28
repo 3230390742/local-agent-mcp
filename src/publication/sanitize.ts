@@ -1,10 +1,11 @@
 import { redact } from "../redaction.js";
 
 const WINDOWS_ABSOLUTE = /\b[A-Za-z]:\\(?:[^\s"'<>|]+\\)*[^\s"'<>|]*/g;
-const POSIX_ABSOLUTE = /(^|(?<!http)(?<!https)[^A-Za-z0-9/])\/[^\s"'<>|]+/gm;
+const POSIX_ABSOLUTE = /(^|(?<!http)(?<!https)[^A-Za-z0-9/])\/[^\s"'<>|]+/gim;
 const UNC_ABSOLUTE = /\\\\[^\s"'<>|\\]+(?:\\[^\s"'<>|\\]+)+/g;
 const SESSION_ID = /\b(?:ses_[A-Za-z0-9_-]+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/gi;
-const AUTHORIZATION_HEADER = /\bauthorization\s*[:=]\s*(?:bearer|basic|token)\s+[A-Za-z0-9._\-+/=]+/gi;
+const AUTHORIZATION_KEY = /["']?authorization["']?\s*[:=]/i;
+const ABSOLUTE_LOCAL_PATH = /[A-Za-z]:\\|\\\\|(?:^|[^A-Za-z0-9/])\/(?!\/)/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -28,11 +29,19 @@ function redactUsername(text: string, username: string): string {
   return text.replace(token, "$1<local-username>");
 }
 
+function neutralizeSensitiveLines(text: string): string {
+  return text.replace(/[^\r\n]+/g, (line) =>
+    AUTHORIZATION_KEY.test(line) || ABSOLUTE_LOCAL_PATH.test(line)
+      ? "[REDACTED]"
+      : line,
+  );
+}
+
 export function sanitizePublicText(
   value: unknown,
   privateRoot: string,
 ): string {
-  let text = String(value ?? "").replace(AUTHORIZATION_HEADER, "[REDACTED]");
+  let text = neutralizeSensitiveLines(String(value ?? ""));
   text = redact(text);
   if (privateRoot) {
     text = text.replace(
