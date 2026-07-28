@@ -359,9 +359,10 @@ They are review evidence for the same small input-validation fixture.
 
 ## Privacy boundary
 
-The deployed portfolio imports these two reviewed JSON files as a static replay.
-It cannot call Codex or OpenCode, spawn a CLI, accept a prompt, proxy a request,
-or access local Agent credentials. Real execution remains on the local machine.
+When deployed, the portfolio imports these two reviewed JSON files as a static
+replay. It cannot call Codex or OpenCode, spawn a CLI, accept a prompt, proxy a
+request, or access local Agent credentials. Real execution remains on the local
+machine.
 
 The publication audit rejects write-enabled policy, absolute paths, local
 usernames, credential-shaped values, auth headers, session/thread identifiers,
