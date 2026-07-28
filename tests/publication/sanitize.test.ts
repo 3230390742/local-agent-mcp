@@ -283,6 +283,8 @@ describe("sanitizePublicText", () => {
     "user=a",
     "account: a",
     "owner=a",
+    "\u201cusername\u201d: \u201ca\u201d",
+    "\u2018username\u2019: \u2018a\u2019",
   ])("neutralizes an identity-labelled one-character username: %s", (value) => {
     const originalUsername = process.env.USERNAME;
     const originalUser = process.env.USER;

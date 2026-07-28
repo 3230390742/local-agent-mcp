@@ -81,7 +81,7 @@ function hasLabelledUsernameValue(line: string, usernames: string[]): boolean {
   const detectionView = line.replace(ORDINARY_HTTP_URL, "");
   return usernames.some((username) => {
     const labelledValue = new RegExp(
-      `(?:^|[^\\p{L}\\p{N}_])["']?(?:username|user|account|owner)["']?\\s*[:=]\\s*["']?${escapeRegExp(username)}(?=["']?(?:$|[^\\p{L}\\p{N}_]))`,
+      `(?:^|[^\\p{L}\\p{N}_])["'\\u2018\\u2019\\u201c\\u201d]?(?:username|user|account|owner)["'\\u2018\\u2019\\u201c\\u201d]?\\s*[:=]\\s*["'\\u2018\\u2019\\u201c\\u201d]?${escapeRegExp(username)}(?=["'\\u2018\\u2019\\u201c\\u201d]?(?:$|[^\\p{L}\\p{N}_]))`,
       "iu",
     );
     return labelledValue.test(detectionView);
