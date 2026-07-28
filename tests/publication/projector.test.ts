@@ -69,4 +69,46 @@ describe("projectComparison", () => {
     );
     expect(output.note).toContain("without ranking");
   });
+
+  it("replaces every execution error with a fixed public summary", () => {
+    const comparison = privateComparison();
+    comparison.codex = {
+      ...comparison.codex,
+      ok: false,
+      result: {
+        ...comparison.codex.result!,
+        errors: [
+          "stderr: sk-proj-ABCDEFGHIJKLMNOP1234567890 D:\\Users\\alice\\demo ses_private 019f2918-9644-7480-867c-c993bf84dfd7",
+        ],
+      },
+      error: {
+        code: "execution_failed",
+        message:
+          "stderr: Authorization: Bearer secret-token /etc/hosts alice ses_private",
+      },
+    };
+    comparison.opencode = {
+      ...comparison.opencode,
+      ok: false,
+      result: null,
+      error: {
+        code: "execution_failed",
+        message:
+          "stderr: ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 \\\\server\\share\\a.txt bob ses_private",
+      },
+    };
+
+    const output = projectComparison(comparison, "D:\\Users\\alice\\demo");
+    const json = JSON.stringify(output);
+
+    expect(output.codex.errors).toEqual([
+      "Agent execution details are unavailable.",
+    ]);
+    expect(output.opencode.errors).toEqual([
+      "Agent execution details are unavailable.",
+    ]);
+    expect(json).not.toMatch(
+      /stderr:|sk-proj-|Authorization:|secret-token|D:\\\\Users|\/etc\/hosts|alice|bob|ses_private|019f2918|ghp_|server\\\\share/,
+    );
+  });
 });

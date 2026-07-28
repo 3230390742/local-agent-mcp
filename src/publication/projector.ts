@@ -2,6 +2,8 @@ import type { AgentCompareResult } from "../tools/agent-compare.js";
 import type { PublicAgentRun } from "./schema.js";
 import { sanitizePublicText } from "./sanitize.js";
 
+const PUBLIC_ERROR_SUMMARY = "Agent execution details are unavailable.";
+
 function projectCodex(
   result: AgentCompareResult,
   privateRoot: string,
@@ -19,11 +21,7 @@ function projectCodex(
       commands: run?.commands.length ?? 0,
       files: run?.fileChanges.length ?? 0,
     },
-    errors: (run?.errors ?? (entry.error ? [entry.error.message] : []))
-      .slice(0, 10)
-      .map((value) =>
-        sanitizePublicText(value, privateRoot).slice(0, 1_000),
-      ),
+    errors: run?.errors.length || entry.error ? [PUBLIC_ERROR_SUMMARY] : [],
   };
 }
 
@@ -44,11 +42,7 @@ function projectOpenCode(
       commands: run?.tools.length ?? 0,
       files: run?.fileChanges.length ?? 0,
     },
-    errors: (run?.errors ?? (entry.error ? [entry.error.message] : []))
-      .slice(0, 10)
-      .map((value) =>
-        sanitizePublicText(value, privateRoot).slice(0, 1_000),
-      ),
+    errors: run?.errors.length || entry.error ? [PUBLIC_ERROR_SUMMARY] : [],
   };
 }
 

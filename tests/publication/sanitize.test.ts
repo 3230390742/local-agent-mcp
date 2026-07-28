@@ -10,6 +10,34 @@ describe("sanitizePublicText", () => {
     expect(sanitizePublicText(raw, root)).not.toContain(raw);
   });
 
+  it.each([
+    "/workspace/demo/a.ts",
+    "/etc/hosts",
+    "path:/opt/private/a.ts",
+    "\\\\server\\share\\a.txt",
+  ])("removes arbitrary absolute path %s", (raw) => {
+    expect(sanitizePublicText(raw, "D:\\Users\\alice\\demo")).not.toContain(
+      raw,
+    );
+  });
+
+  it.each([
+    ["alice", "D:\\Users\\alice\\demo"],
+    ["bob", "/home/bob/demo"],
+  ])("removes local username %s outside a path", (username, root) => {
+    expect(sanitizePublicText(`${username} reviewed the result`, root)).not.toContain(
+      username,
+    );
+  });
+
+  it("preserves generic directory words and unrelated username substrings", () => {
+    const output = sanitizePublicText(
+      "Users review malice and alicea together.",
+      "D:\\Users\\alice\\demo",
+    );
+    expect(output).toBe("Users review malice and alicea together.");
+  });
+
   it.each(["ses_secret123", "019f2918-9644-7480-867c-c993bf84dfd7"])(
     "removes session identifier %s",
     (value) => {
