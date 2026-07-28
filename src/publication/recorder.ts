@@ -19,6 +19,8 @@ export const PUBLIC_SCENARIO = {
   mode: "read_only",
 } as const;
 
+export const PUBLIC_OPENCODE_MODEL = "opencode/deepseek-v4-flash-free";
+
 export interface RecorderDependencies {
   now(): Date;
   revision(): Promise<string>;
@@ -41,7 +43,7 @@ export async function recordPublicDemo(options: RecordPublicDemoOptions): Promis
   const ctx: ToolContext = { config, concurrency: new ConcurrencyManager(config.maxConcurrency) };
   const [health, privateComparison] = await Promise.all([
     options.dependencies.health(ctx),
-    options.dependencies.compare({ prompt: PUBLIC_SCENARIO.prompt, cwd: options.fixtureRoot, parallel: true, timeout_seconds: 180 }, ctx),
+    options.dependencies.compare({ prompt: PUBLIC_SCENARIO.prompt, cwd: options.fixtureRoot, opencode_model: PUBLIC_OPENCODE_MODEL, parallel: true, timeout_seconds: 180 }, ctx),
   ]);
   if (
     health.allowedRoots.length !== 1 ||

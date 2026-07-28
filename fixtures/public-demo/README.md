@@ -5,4 +5,4 @@ Agents. It deliberately omits finite, integer, and range validation so both
 Agents can identify concrete input edge cases and recommend bounded validation.
 The fixture does not claim that either Agent is more accurate.
 
-Reviewed text: ?????pageSize ??? 1-100 ??????????
+Reviewed text: 建议为 pageSize 增加 1-100 的整数边界。

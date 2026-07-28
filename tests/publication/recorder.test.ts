@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { AgentCompareInput } from "../../src/tools/agent-compare.js";
 import type { AgentCompareResult } from "../../src/tools/agent-compare.js";
 import { recordPublicDemo, type RecorderDependencies } from "../../src/publication/recorder.js";
 
@@ -48,6 +49,32 @@ const dependencies: RecorderDependencies = {
 };
 
 describe("recordPublicDemo", () => {
+  it("uses the fixed OpenCode model for the fixed read-only comparison", async () => {
+    let captured: AgentCompareInput | undefined;
+    const recordingDependencies: RecorderDependencies = {
+      ...dependencies,
+      compare: async (input) => {
+        captured = input;
+        return fakeSuccessfulComparison();
+      },
+    };
+
+    await recordPublicDemo({
+      fixtureRoot: "D:\\Users\\alice\\demo",
+      projectVersion: "1.0.0",
+      verification: { testFilesPassed: 1, testFilesTotal: 1, testsPassed: 1, testsTotal: 1, typecheck: "passed" },
+      dependencies: recordingDependencies,
+    });
+
+    expect(captured).toEqual({
+      prompt: "Review the input validation in this small API fixture. Identify concrete edge cases and recommend bounded validation. Do not modify files.",
+      cwd: "D:\\Users\\alice\\demo",
+      opencode_model: "opencode/deepseek-v4-flash-free",
+      parallel: true,
+      timeout_seconds: 180,
+    });
+  });
+
   it("records one fixed read-only scenario with only public projection", async () => {
     const manifest = await recordPublicDemo({
       fixtureRoot: "D:\\Users\\alice\\demo",
