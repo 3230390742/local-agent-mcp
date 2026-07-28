@@ -146,6 +146,7 @@ describe("auditManifest", () => {
     "owner=a",
     "\u201cusername\u201d: \u201ca\u201d",
     "\u2018username\u2019: \u2018a\u2019",
+    "\u00abusername\u00bb: \u00aba\u00bb",
     "D:\\Users\\a\\demo\\secret.txt",
     "https://a.example.test/review",
     "https://a@example.test/review",

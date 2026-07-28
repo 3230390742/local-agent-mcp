@@ -20,18 +20,19 @@ describe("readVitestSummary", () => {
 
   it.each([
     {},
-    { numPassedTestSuites: "1", numTotalTestSuites: 1, numPassedTests: 1, numTotalTests: 1 },
-    { numPassedTestSuites: 0, numTotalTestSuites: 0, numPassedTests: 1, numTotalTests: 1 },
-    { numPassedTestSuites: -1, numTotalTestSuites: -1, numPassedTests: 1, numTotalTests: 1 },
-    { numPassedTestSuites: 1, numTotalTestSuites: 1, numPassedTests: 0, numTotalTests: 0 },
-    { numPassedTestSuites: 1, numTotalTestSuites: 1, numPassedTests: -1, numTotalTests: -1 },
-    { numPassedTestSuites: 1, numTotalTestSuites: 2, numPassedTests: 1, numTotalTests: 1 },
-    { numPassedTestSuites: 1, numTotalTestSuites: 1, numPassedTests: 1, numTotalTests: 2 },
+    { success: false, numPassedTestSuites: 1, numTotalTestSuites: 1, numPassedTests: 1, numTotalTests: 1 },
+    { success: true, numPassedTestSuites: "1", numTotalTestSuites: 1, numPassedTests: 1, numTotalTests: 1 },
+    { success: true, numPassedTestSuites: 0, numTotalTestSuites: 0, numPassedTests: 1, numTotalTests: 1 },
+    { success: true, numPassedTestSuites: -1, numTotalTestSuites: -1, numPassedTests: 1, numTotalTests: 1 },
+    { success: true, numPassedTestSuites: 1, numTotalTestSuites: 1, numPassedTests: 0, numTotalTests: 0 },
+    { success: true, numPassedTestSuites: 1, numTotalTestSuites: 1, numPassedTests: -1, numTotalTests: -1 },
+    { success: true, numPassedTestSuites: 1, numTotalTestSuites: 2, numPassedTests: 1, numTotalTests: 1 },
+    { success: true, numPassedTestSuites: 1, numTotalTestSuites: 1, numPassedTests: 1, numTotalTests: 2 },
   ])("rejects invalid summary %j", async (value) => {
     await expect(readVitestSummary(await summary(value))).rejects.toThrow();
   });
 
   it("derives all counts from JSON", async () => {
-    await expect(readVitestSummary(await summary({ numPassedTestSuites: 2, numTotalTestSuites: 2, numPassedTests: 3, numTotalTests: 3 }))).resolves.toEqual({ testFilesPassed: 2, testFilesTotal: 2, testsPassed: 3, testsTotal: 3, typecheck: "passed" });
+    await expect(readVitestSummary(await summary({ success: true, numPassedTestSuites: 2, numTotalTestSuites: 2, numPassedTests: 3, numTotalTests: 3 }))).resolves.toEqual({ testFilesPassed: 2, testFilesTotal: 2, testsPassed: 3, testsTotal: 3, typecheck: "passed" });
   });
 });

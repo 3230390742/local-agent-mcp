@@ -10,6 +10,9 @@ export interface VerificationSummary {
 
 export async function readVitestSummary(file: string): Promise<VerificationSummary> {
   const value = JSON.parse(await readFile(file, "utf8")) as Record<string, unknown>;
+  if (value.success !== true) {
+    throw new Error("verification did not fully pass");
+  }
   const fields = ["numPassedTestSuites", "numTotalTestSuites", "numPassedTests", "numTotalTests"] as const;
   if (fields.some((field) => typeof value[field] !== "number")) {
     throw new Error("invalid Vitest summary");
