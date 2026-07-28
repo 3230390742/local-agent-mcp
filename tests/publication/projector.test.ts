@@ -1,0 +1,72 @@
+import { describe, expect, it } from "vitest";
+import type { AgentCompareResult } from "../../src/tools/agent-compare.js";
+import { projectComparison } from "../../src/publication/projector.js";
+
+function privateComparison(): AgentCompareResult {
+  return {
+    prompt_preview: "private prompt",
+    cwd: "D:\\Users\\alice\\demo",
+    parallel: true,
+    note: "private note",
+    codex: {
+      ok: true,
+      durationMs: 120,
+      exitStatus: { exitCode: 0, signal: null, timedOut: false },
+      result: {
+        ok: true,
+        agent: "codex",
+        mode: "read_only",
+        cwd: "D:\\Users\\alice\\demo",
+        finalMessage: "See D:\\Users\\alice\\demo\\src\\a.ts",
+        threadId: "019f2918-9644-7480-867c-c993bf84dfd7",
+        commands: [{ command: "type secret.env", exitCode: 0 }],
+        fileChanges: [],
+        errors: [],
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        truncated: false,
+        durationMs: 120,
+        events: [{ token: "private" }],
+      },
+    },
+    opencode: {
+      ok: true,
+      durationMs: 140,
+      exitStatus: { exitCode: 0, signal: null, timedOut: false },
+      result: {
+        ok: true,
+        agent: "opencode",
+        cwd: "D:\\Users\\alice\\demo",
+        autoApprove: false,
+        finalMessage: "session ses_private done",
+        sessionId: "ses_private",
+        tools: [{ tool: "read", target: "D:\\Users\\alice\\demo\\src\\a.ts" }],
+        fileChanges: [],
+        errors: [],
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        truncated: false,
+        durationMs: 140,
+        events: [{ authorization: "Bearer private" }],
+      },
+    },
+  };
+}
+
+describe("projectComparison", () => {
+  it("selects only approved public fields", () => {
+    const output = projectComparison(
+      privateComparison(),
+      "D:\\Users\\alice\\demo",
+    );
+    const json = JSON.stringify(output);
+    expect(output.codex.activity).toEqual({ commands: 1, files: 0 });
+    expect(output.opencode.activity).toEqual({ commands: 1, files: 0 });
+    expect(json).not.toMatch(
+      /D:\\\\Users|threadId|sessionId|events|type secret\.env|ses_private|Bearer private/,
+    );
+    expect(output.note).toContain("without ranking");
+  });
+});
