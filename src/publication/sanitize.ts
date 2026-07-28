@@ -64,6 +64,17 @@ function hasAbsoluteFilesystemPath(value: string): boolean {
   );
 }
 
+function hasEncodedAbsoluteFilesystemPathOutsideHttpUrls(value: string): boolean {
+  const detectionView = value.replace(ORDINARY_HTTP_URL, "");
+  if (!/%(?=\S{2})/.test(detectionView)) return false;
+
+  try {
+    return hasAbsoluteFilesystemPath(decodeURIComponent(detectionView));
+  } catch {
+    return true;
+  }
+}
+
 function hasFilesystemUrlData(component: string): boolean {
   let decoded: string;
   try {
@@ -114,7 +125,8 @@ function hasAbsoluteLocalPath(line: string): boolean {
   return (
     WINDOWS_PATH_PREFIX.test(detectionView) ||
     UNC_PATH_PREFIX.test(detectionView) ||
-    POSIX_PATH_PREFIX.test(detectionView)
+    POSIX_PATH_PREFIX.test(detectionView) ||
+    hasEncodedAbsoluteFilesystemPathOutsideHttpUrls(line)
   );
 }
 

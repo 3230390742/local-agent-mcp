@@ -29,6 +29,25 @@ describe("sanitizePublicText", () => {
     );
   });
 
+  it.each([
+    "%2Fetc%2Fhosts",
+    "C%3A%5CUsers%5Calice%5Csecret.txt",
+    "%5C%5Cserver%5Cshare%5Csecret.txt",
+  ])("neutralizes a standalone percent-encoded absolute path %s", (raw) => {
+    expect(sanitizePublicText(raw, "D:\\Users\\alice\\demo")).toBe("[REDACTED]");
+  });
+
+  it("fails closed for invalid percent encoding outside an HTTP(S) URL", () => {
+    expect(sanitizePublicText("review location %ZZ", "D:\\demo")).toBe("[REDACTED]");
+  });
+
+  it.each([
+    "Review confidence: 100% approved.",
+    "Review confidence: 100%",
+  ])("preserves ordinary percentage prose %s", (text) => {
+    expect(sanitizePublicText(text, "D:\\demo")).toBe(text);
+  });
+
   it("neutralizes a Windows path immediately after an ASCII word character", () => {
     expect(
       sanitizePublicText("prefixD:\\Users\\alice\\other\\secret.txt", "D:\\demo"),
