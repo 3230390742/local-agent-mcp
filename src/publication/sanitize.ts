@@ -11,11 +11,11 @@ const WINDOWS_PATH_PREFIX = /[A-Za-z]:\\/;
 const UNC_PATH_PREFIX = /\\\\/;
 const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/+(?=\S)/;
 const SESSION_OR_THREAD_KEY =
-  /(?:["']?(?:session|thread)(?:[ _-]?(?:id|identifier))?["']?\s*[:=]|["']?(?:session|thread)[ _-]?(?:id|identifier)["']?\s+\S)/i;
+  /(?:["']?(?:session|thread)(?:[ _.-]?(?:id|identifier))?["']?\s*[:=]|["']?(?:session|thread)[ _.-]?(?:id|identifier)["']?\s+\S)/i;
 const STDERR_KEY =
-  /\b(?:stderr|standard error)(?:[ _-](?:output|stream))?\s*[:=-]/i;
+  /\b(?:stderr|standard error)(?:[ _-](?:output|stream)(?:\s*\([^\r\n()]{1,80}\))?)?\s*[:=-]/i;
 const PROMPT_KEY =
-  /\b(?:(?:user|system|developer)[ _-])?prompt(?:\s*[:=-]|\s+\S)/i;
+  /\b(?:(?:user|system|developer)[ _-])?prompt(?:\.(?:input|text|content|value))?(?:\s*[:=-]|\s+\S)/i;
 const REVIEWED_PROMPT_STATUS =
   /^\s*prompt(?:\s+review)?\s+(?:complete|passed|approved)\.?\s*$/i;
 const PRIVATE_KEY_BLOCK =
@@ -41,6 +41,22 @@ function redactUsername(text: string, username: string): string {
     "giu",
   );
   return text.replace(token, "$1<local-username>");
+}
+
+function redactUsernameOutsideHttpUrls(text: string, username: string): string {
+  let output = "";
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(ORDINARY_HTTP_URL)) {
+    const urlIndex = match.index;
+    if (urlIndex === undefined) continue;
+
+    output += redactUsername(text.slice(lastIndex, urlIndex), username);
+    output += match[0];
+    lastIndex = urlIndex + match[0].length;
+  }
+
+  return output + redactUsername(text.slice(lastIndex), username);
 }
 
 function hasAbsoluteLocalPath(line: string): boolean {
@@ -82,7 +98,7 @@ export function sanitizePublicText(
   text = text.replace(WINDOWS_ABSOLUTE, "<private-path>");
   text = text.replace(UNC_ABSOLUTE, "<private-path>");
   for (const username of localUsernames(privateRoot)) {
-    text = redactUsername(text, username);
+    text = redactUsernameOutsideHttpUrls(text, username);
   }
   text = text.replace(SESSION_ID, "<session-id>");
   return text.slice(0, 8_000);

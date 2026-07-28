@@ -113,6 +113,21 @@ describe("sanitizePublicText", () => {
     expect(output).not.toMatch(/alice|secret|@example\.com|trailing private text/i);
   });
 
+  it("preserves HTTP URL spans while masking a root-derived username in prose", () => {
+    const root = "D:\\Users\\alice\\demo";
+    const prose = "alice reviewed https://alice.example/review and public prose.";
+
+    expect(sanitizePublicText(prose, root)).toBe(
+      "<local-username> reviewed https://alice.example/review and public prose.",
+    );
+    expect(
+      sanitizePublicText(
+        "https://alice:secret@example.com/review\npublic review",
+        root,
+      ),
+    ).toBe("[REDACTED]\npublic review");
+  });
+
   it.each([
     "ftp://alice:secret@example.test/review trailing private text",
     "CuStOm+V1://alice@example.test/review trailing private text",
@@ -155,6 +170,17 @@ describe("sanitizePublicText", () => {
   ])("neutralizes labeled session or thread identifier variants %s", (label) => {
     const output = sanitizePublicText(`${label}\npublic review`, "D:\\demo");
     expect(output).toBe("[REDACTED]\npublic review");
+  });
+
+  it.each([
+    "session.id=private-run",
+    "thread.identifier:opaque",
+    "prompt.input=private instruction",
+    "user_prompt.content: private request",
+  ])("neutralizes dotted private structured label %s", (line) => {
+    expect(sanitizePublicText(`${line}\npublic review`, "D:\\demo")).toBe(
+      "[REDACTED]\npublic review",
+    );
   });
 
   it("preserves ordinary slash-separated decision text and URL query paths", () => {
@@ -212,6 +238,15 @@ describe("sanitizePublicText", () => {
       expect(output).toBe("[REDACTED]\npublic review");
     },
   );
+
+  it.each([
+    "stderr output (truncated): proprietary diagnostic",
+    "standard error stream (partial) - private",
+  ])("neutralizes stderr output with bounded qualifier metadata %s", (line) => {
+    expect(sanitizePublicText(`${line}\npublic review`, "D:\\demo")).toBe(
+      "[REDACTED]\npublic review",
+    );
+  });
 
   it.each([
     "Prompt: reset production database",
