@@ -57,6 +57,23 @@ describe("sanitizePublicText", () => {
     expect(output).not.toContain(value);
   });
 
+  it("replaces a complete authorization header with one neutral marker", () => {
+    const secret = "secret-token-123";
+    const output = sanitizePublicText(
+      `Authorization: Bearer ${secret}`,
+      "D:\\demo",
+    );
+    expect(output).toBe("[REDACTED]");
+    expect(output).not.toMatch(/authorization|bearer|secret/i);
+  });
+
+  it.each([
+    "http://example.com/reviews/42",
+    "https://example.com/reviews/42",
+  ])("preserves ordinary public URL %s", (url) => {
+    expect(sanitizePublicText(url, "D:\\demo")).toBe(url);
+  });
+
   it.each([
     {
       language: "English",

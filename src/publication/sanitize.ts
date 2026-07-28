@@ -1,9 +1,10 @@
 import { redact } from "../redaction.js";
 
 const WINDOWS_ABSOLUTE = /\b[A-Za-z]:\\(?:[^\s"'<>|]+\\)*[^\s"'<>|]*/g;
-const POSIX_ABSOLUTE = /(^|[^A-Za-z0-9/])\/[^\s"'<>|]+/gm;
+const POSIX_ABSOLUTE = /(^|(?<!http)(?<!https)[^A-Za-z0-9/])\/[^\s"'<>|]+/gm;
 const UNC_ABSOLUTE = /\\\\[^\s"'<>|\\]+(?:\\[^\s"'<>|\\]+)+/g;
 const SESSION_ID = /\b(?:ses_[A-Za-z0-9_-]+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/gi;
+const AUTHORIZATION_HEADER = /\bauthorization\s*[:=]\s*(?:bearer|basic|token)\s+[A-Za-z0-9._\-+/=]+/gi;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -31,7 +32,8 @@ export function sanitizePublicText(
   value: unknown,
   privateRoot: string,
 ): string {
-  let text = redact(String(value ?? ""));
+  let text = String(value ?? "").replace(AUTHORIZATION_HEADER, "[REDACTED]");
+  text = redact(text);
   if (privateRoot) {
     text = text.replace(
       new RegExp(escapeRegExp(privateRoot), "gi"),
