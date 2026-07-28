@@ -48,6 +48,7 @@ describe("sanitizePublicText", () => {
     "%252Fetc%252Fhosts",
     "%25252Fetc%25252Fhosts",
     "C%253A%255CUsers%255Calice%255Csecret.txt",
+    "path=C%253A%255CUsers%255Calice%255Csecret.txt",
     "C%25253A%25255CUsers%25255Calice%25255Csecret.txt",
     "%255C%255Cserver%255Cshare%255Csecret.txt",
     "%25255C%25255Cserver%25255Cshare%25255Csecret.txt",
@@ -55,8 +56,37 @@ describe("sanitizePublicText", () => {
     expect(sanitizePublicText(raw, "D:\\Users\\alice\\demo")).toBe("[REDACTED]");
   });
 
+  it("preserves a mid-word encoded drive-like label without a path", () => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      expect(sanitizePublicText("metricC%3A is a label", "D:\\demo")).toBe(
+        "metricC%3A is a label",
+      );
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
+  it.each([
+    "prefixC%3A%5CUsers%5Calice%5Csecret.txt",
+    "prefixC%253A%255CUsers%255Calice%255Csecret.txt",
+  ])("redacts a prefixed encoded Windows drive path %s", (text) => {
+    expect(sanitizePublicText(text, "D:\\demo")).toBe("[REDACTED]");
+  });
+
   it.each([
     "Coverage is 100%complete",
+    "Coverage is 100%beef",
+    "Coverage is 100%dead",
     "Review confidence: 100% approved.",
     "Review confidence: 100%",
   ])("preserves ordinary percentage prose %s", (text) => {

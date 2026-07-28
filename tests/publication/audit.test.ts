@@ -49,6 +49,7 @@ describe("auditManifest", () => {
     ["UNC path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "\\\\server\\share\\secret.txt"; }],
     ["percent-encoded POSIX path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%2Fetc%2Fhosts"; }],
     ["percent-encoded Windows path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "C%3A%5CUsers%5Calice%5Csecret.txt"; }],
+    ["delimited double-encoded Windows path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "path=C%253A%255CUsers%255Calice%255Csecret.txt"; }],
     ["percent-encoded UNC path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%5C%5Cserver%5Cshare%5Csecret.txt"; }],
     ["percent-encoded Windows rooted path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%5CUsers%5Calice%5Csecret.txt"; }],
     ["double-encoded POSIX path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%252Fetc%252Fhosts"; }],
@@ -73,6 +74,36 @@ describe("auditManifest", () => {
     const value = validManifest();
     mutate(value);
     expect(() => auditManifest(value)).toThrow();
+  });
+
+  it("allows a mid-word encoded drive-like label without a path", () => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      const value = validManifest();
+      value.comparison.codex.finalMessage = "metricC%3A is a label";
+      expect(() => auditManifest(value)).not.toThrow();
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "fixture-local-user" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
+  it.each([
+    "prefixC%3A%5CUsers%5Calice%5Csecret.txt",
+    "prefixC%253A%255CUsers%255Calice%255Csecret.txt",
+  ])("rejects a prefixed encoded Windows drive path %s", (text) => {
+    const value = validManifest();
+    value.comparison.codex.finalMessage = text;
+
+    expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
   });
 
   it("requires the exact ordered stages", () => {
@@ -175,6 +206,8 @@ describe("auditManifest", () => {
 
   it.each([
     "Coverage is 100%complete",
+    "Coverage is 100%beef",
+    "Coverage is 100%dead",
     "Review confidence: 100% approved.",
     "Review confidence: 100%",
     "Decision: approve / defer",

@@ -14,6 +14,7 @@ const WINDOWS_ROOTED_PATH_PREFIX = /(?:^|[^A-Za-z0-9\\])\\(?!\\)(?=$|\S)/;
 const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/(?=$|\S)/;
 const VALID_PERCENT_OCTET = /%[0-9A-Fa-f]{2}/;
 const BOUNDARY_PERCENT_ATTEMPT = /(?:^|[^\p{L}\p{N}_])%(?=\S{2})/u;
+const ENCODED_WINDOWS_DRIVE_PREFIX = /[A-Za-z]%(?:25){0,7}3A/iu;
 const MAX_PERCENT_DECODE_DEPTH = 8;
 const SESSION_OR_THREAD_KEY =
   /(?:["']?(?:session|thread)(?:[ _.-]?(?:id|identifier))?["']?\s*[:=]|["']?(?:session|thread)[ _.-]?(?:id|identifier)["']?\s+\S)/i;
@@ -88,6 +89,12 @@ function decodePercentEncoded(value: string): string | undefined {
 
 function hasEncodedAbsoluteFilesystemPathOutsideHttpUrls(value: string): boolean {
   const detectionView = value.replace(ORDINARY_HTTP_URL, "");
+  if (
+    !BOUNDARY_PERCENT_ATTEMPT.test(detectionView) &&
+    !ENCODED_WINDOWS_DRIVE_PREFIX.test(detectionView)
+  ) {
+    return false;
+  }
   const decoded = decodePercentEncoded(detectionView);
   return decoded === undefined || hasAbsoluteFilesystemPath(decoded);
 }
@@ -145,6 +152,7 @@ function hasAbsoluteLocalPath(line: string): boolean {
   return (
     WINDOWS_PATH_PREFIX.test(detectionView) ||
     UNC_PATH_PREFIX.test(detectionView) ||
+    WINDOWS_ROOTED_PATH_PREFIX.test(detectionView) ||
     POSIX_PATH_PREFIX.test(detectionView) ||
     hasEncodedAbsoluteFilesystemPathOutsideHttpUrls(line)
   );
