@@ -123,6 +123,64 @@ describe("sanitizePublicText", () => {
     expect(output).not.toContain("thr_private_123");
   });
 
+  it("preserves ordinary slash-separated decision text and URL query paths", () => {
+    const text = [
+      "Decision: approve / defer",
+      "https://example.com/login?next=/reviews/42",
+    ].join("\n");
+
+    expect(sanitizePublicText(text, "D:\\demo")).toBe(text);
+  });
+
+  it.each([
+    "Session ID: opaque-123",
+    "Thread ID = private-run",
+    '"Session ID": "opaque-123"',
+    '"Thread ID" = "private-run"',
+  ])("neutralizes whitespace-separated session or thread label %s", (label) => {
+    const output = sanitizePublicText(`${label}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+  });
+
+  it.each(["stderr: internal failure", "stderr=internal failure"])(
+    "neutralizes stderr-labeled line %s",
+    (line) => {
+      const output = sanitizePublicText(`${line}\npublic review`, "D:\\demo");
+      expect(output).toBe("[REDACTED]\npublic review");
+    },
+  );
+
+  it.each([
+    "PRIVATE KEY",
+    "RSA PRIVATE KEY",
+    "OPENSSH PRIVATE KEY",
+  ])("neutralizes a complete %s PEM block", (type) => {
+    const secret = [
+      `-----BEGIN ${type}-----`,
+      "cHJpdmF0ZS1rZXktbWF0ZXJpYWw=",
+      `-----END ${type}-----`,
+    ].join("\n");
+    const output = sanitizePublicText(`${secret}\npublic review`, "D:\\demo");
+
+    expect(output).toBe("[REDACTED]\npublic review");
+    expect(output).not.toContain("PRIVATE KEY");
+    expect(output).not.toContain("cHJpdmF0ZS1rZXktbWF0ZXJpYWw=");
+  });
+
+  it("neutralizes an unterminated PKCS8 PEM block through end of input", () => {
+    const output = sanitizePublicText(
+      [
+        "public review before key",
+        "-----BEGIN PRIVATE KEY-----",
+        "cHJpdmF0ZS1rZXktbWF0ZXJpYWw=",
+        "still private",
+      ].join("\n"),
+      "D:\\demo",
+    );
+
+    expect(output).toBe("public review before key\n[REDACTED]");
+  });
+
   it.each([
     {
       language: "English",
