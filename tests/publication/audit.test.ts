@@ -129,13 +129,23 @@ describe("auditManifest", () => {
   });
 
   it("does not apply prompt labels inside HTTP(S) URL spans", () => {
-    const ordinaryUrl = validManifest();
-    ordinaryUrl.comparison.codex.finalMessage = "See https://github.com/acme/prompt-tools";
-    expect(() => auditManifest(ordinaryUrl)).not.toThrow();
+    for (const publicUrl of [
+      "https://github.com/acme/prompt-tools",
+      "https://github.com/acme/repo/tree/credential=docs",
+      "https://github.com/acme/repo/tree/authorization=guide",
+    ]) {
+      const ordinaryUrl = validManifest();
+      ordinaryUrl.comparison.codex.finalMessage = `See ${publicUrl}`;
+      expect(() => auditManifest(ordinaryUrl)).not.toThrow();
+    }
 
     for (const sensitiveUrl of [
       "https://github.com/acme/prompt-tools?path=/etc/hosts",
       "https://github.com/acme/prompt-tools#path=/etc/hosts",
+      "https://github.com/acme/prompt-tools#%2Fetc%2Fhosts",
+      "https://github.com/acme/prompt-tools?%2Fetc%2Fhosts",
+      "https://github.com/acme/prompt-tools?credential=secret",
+      "https://github.com/acme/prompt-tools#authorization=Bearer%20secret",
     ]) {
       const value = validManifest();
       value.comparison.codex.finalMessage = sensitiveUrl;

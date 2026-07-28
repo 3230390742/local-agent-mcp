@@ -37,7 +37,7 @@ function assertPublicStrings(value: unknown, path: string[] = []): void {
       throw new Error("public artifact contains forbidden data");
     }
     if (
-      CREDENTIAL_SHAPE.test(value) ||
+      CREDENTIAL_SHAPE.test(labelsOutsideHttpUrls(value)) ||
       FORBIDDEN_LABELS.some((pattern) => pattern.test(labelsOutsideHttpUrls(value)))
     ) {
       throw new Error("public artifact contains forbidden data");

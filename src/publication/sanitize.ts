@@ -21,6 +21,8 @@ const REVIEWED_PROMPT_STATUS =
   /^\s*prompt(?:\s+review)?\s+(?:complete|passed|approved)\.?\s*$/i;
 const PRIVATE_KEY_BLOCK =
   /-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END (?:[A-Z0-9]+ )?PRIVATE KEY(?: BLOCK)?-----|$)/g;
+const SENSITIVE_HTTP_PARAMETER_KEY =
+  /^(?:(?:api[ _-]?)?key|provider|secret|password|passwd|token|credentials?|(?:proxy[ _-]?)?authorization|(?:(?:user|system|developer)[ _-])?prompt(?:[._-]?(?:input|text|content|value|preview))?|(?:stderr|standard error)(?:[ _-](?:output|stream))?)$/i;
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -63,13 +65,25 @@ function hasAbsoluteFilesystemPath(value: string): boolean {
 }
 
 function hasFilesystemUrlData(component: string): boolean {
-  if (component.startsWith("/") && hasAbsoluteFilesystemPath(component)) {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(component);
+  } catch {
     return true;
   }
 
-  return [...new URLSearchParams(component)].some(([, value]) =>
-    hasAbsoluteFilesystemPath(value),
-  );
+  if (hasAbsoluteFilesystemPath(decoded)) return true;
+
+  try {
+    return [...new URLSearchParams(component)].some(
+      ([name, value]) =>
+        SENSITIVE_HTTP_PARAMETER_KEY.test(name) ||
+        hasAbsoluteFilesystemPath(name) ||
+        hasAbsoluteFilesystemPath(value),
+    );
+  } catch {
+    return true;
+  }
 }
 
 function hasSensitiveHttpUrl(text: string, usernames: string[]): boolean {
@@ -107,14 +121,28 @@ function hasAbsoluteLocalPath(line: string): boolean {
 function hasSensitiveLabelsOutsideHttpUrls(line: string): boolean {
   const detectionView = line.replace(ORDINARY_HTTP_URL, "");
   return (
+    AUTHORIZATION_KEY.test(detectionView) ||
     STDERR_KEY.test(detectionView) ||
     (PROMPT_KEY.test(detectionView) && !REVIEWED_PROMPT_STATUS.test(detectionView))
   );
 }
 
+function redactOutsideHttpUrls(text: string): string {
+  let result = "";
+  let cursor = 0;
+
+  for (const match of text.matchAll(ORDINARY_HTTP_URL)) {
+    const index = match.index ?? cursor;
+    result += redact(text.slice(cursor, index));
+    result += match[0];
+    cursor = index + match[0].length;
+  }
+
+  return result + redact(text.slice(cursor));
+}
+
 function neutralizeSensitiveLines(text: string, usernames: string[]): string {
   return text.replace(/[^\r\n]+/g, (line) =>
-    AUTHORIZATION_KEY.test(line) ||
     URI_USERINFO.test(line) ||
     LOCAL_FILE_URI.test(line) ||
     hasAbsoluteLocalPath(line) ||
@@ -133,7 +161,7 @@ export function sanitizePublicText(
   const usernames = localUsernames(privateRoot);
   let text = String(value ?? "").replace(PRIVATE_KEY_BLOCK, "[REDACTED]");
   text = neutralizeSensitiveLines(text, usernames);
-  text = redact(text);
+  text = redactOutsideHttpUrls(text);
   if (privateRoot) {
     text = text.replace(
       new RegExp(escapeRegExp(privateRoot), "gi"),

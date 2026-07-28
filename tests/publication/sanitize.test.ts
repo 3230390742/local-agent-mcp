@@ -109,6 +109,9 @@ describe("sanitizePublicText", () => {
     "https://example.com/reviews/42",
     "HTTP://example.com/reviews/42",
     "hTtPs://example.com/reviews/42",
+    "https://github.com/acme/prompt-tools",
+    "https://github.com/acme/repo/tree/credential=docs",
+    "https://github.com/acme/repo/tree/authorization=guide",
   ])("preserves ordinary public URL %s", (url) => {
     expect(sanitizePublicText(url, "D:\\demo")).toBe(url);
   });
@@ -142,8 +145,27 @@ describe("sanitizePublicText", () => {
     "https://example.test/view?next=/etc/hosts",
     "https://example.test/view#return=/etc/hosts",
     "https://example.test/view?next=%2Fetc%2Fhosts",
+    "https://github.com/acme/prompt-tools#%2Fetc%2Fhosts",
+    "https://github.com/acme/prompt-tools?%2Fetc%2Fhosts",
+    "https://example.test/view#path=%2Fetc%2Fhosts",
   ])("neutralizes an HTTP URL with filesystem data in query or fragment", (url) => {
     expect(sanitizePublicText(url, "D:\\demo")).toBe("[REDACTED]");
+  });
+
+  it.each([
+    "https://example.test/view?credential=secret",
+    "https://example.test/view#authorization=Bearer%20secret",
+    "https://example.test/view?api_key=secret",
+    "https://example.test/view#user_prompt=private",
+    "https://example.test/view?stderr=private",
+  ])("neutralizes an HTTP URL with a sensitive query or fragment key", (url) => {
+    expect(sanitizePublicText(url, "D:\\demo")).toBe("[REDACTED]");
+  });
+
+  it("fails closed for invalid percent encoding in an HTTP query or fragment", () => {
+    expect(
+      sanitizePublicText("https://example.test/view?next=%ZZ", "D:\\demo"),
+    ).toBe("[REDACTED]");
   });
 
   it("redacts the configured local username with the fixed scenario root", () => {
