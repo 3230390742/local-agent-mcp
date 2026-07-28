@@ -11,9 +11,12 @@ import path from "node:path";
  *   CVE-2024-27980, `spawn(<name>.cmd, args, { shell: false })` throws EINVAL.
  *   We refuse to set `shell: true` (that would reintroduce command-injection
  *   risk), so instead we resolve what the shim actually launches:
- *     - a native executable (e.g. opencode.exe) -> spawn it directly, or
+ *     - first a valid `.cmd` shim target: a native executable, or
  *     - `node <entry>.js` (e.g. codex) -> spawn node.exe with the entry script
- *       prepended to the argument array.
+ *       prepended to the argument array, or
+ *     - as a fallback, a directly exposed native executable.
+ *   This ordering avoids Windows App Execution Alias executables: `where` can
+ *   report a WindowsApps `.exe` that exists but rejects direct Node spawn.
  *   Either way the user's prompt/args remain discrete array elements and no
  *   shell parsing ever occurs.
  *
@@ -82,8 +85,9 @@ function parseCmdShim(shimPath: string): string[] {
 
 /**
  * Resolves `name` (a known CLI) to a spawnable command. On POSIX returns the
- * bare name. On Windows, finds the `.cmd`/`.exe` on PATH and, if it is a shim,
- * extracts the underlying native exe or `node <entry.js>` invocation.
+ * bare name. On Windows, resolves a valid `.cmd` shim target before falling
+ * back to a directly exposed `.exe`; this avoids unspawnable App Execution
+ * Alias executables that can be returned by `where`.
  *
  * Returns null if the CLI cannot be found at all.
  */
@@ -102,17 +106,9 @@ export function resolveCommand(name: "codex" | "opencode"): ResolvedCommand | nu
   // Windows: enumerate PATH matches (where returns .exe and .cmd variants).
   const candidates = whichSync(name);
 
-  // Prefer a real native .exe if PATH exposes one directly.
-  const directExe = candidates.find((c) => /\.exe$/i.test(c) && existsSync(c));
-  if (directExe) {
-    result = { command: directExe, prefixArgs: [] };
-    cache.set(name, result);
-    return result;
-  }
-
-  // Otherwise inspect the .cmd shim to find what it launches.
-  const shim = candidates.find((c) => /\.cmd$/i.test(c) && existsSync(c));
-  if (shim) {
+  // Prefer a valid .cmd shim target before any direct .exe. A direct .exe can
+  // be a WindowsApps App Execution Alias that is present but not spawnable.
+  for (const shim of candidates.filter((c) => /\.cmd$/i.test(c) && existsSync(c))) {
     const targets = parseCmdShim(shim);
     for (const target of targets) {
       if (!existsSync(target)) continue;
@@ -125,6 +121,15 @@ export function resolveCommand(name: "codex" | "opencode"): ResolvedCommand | nu
         result = { command: process.execPath, prefixArgs: [target] };
         break;
       }
+    }
+    if (result) break;
+  }
+
+  // Fall back to a directly exposed native executable when no shim target works.
+  if (!result) {
+    const directExe = candidates.find((c) => /\.exe$/i.test(c) && existsSync(c));
+    if (directExe) {
+      result = { command: directExe, prefixArgs: [] };
     }
   }
 
