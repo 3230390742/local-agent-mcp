@@ -10,7 +10,11 @@ const LOCAL_FILE_URI = /\bfile:\/\//i;
 const ORDINARY_HTTP_URL = /\bhttps?:\/\/[^\s"'<>|]+/gi;
 const WINDOWS_PATH_PREFIX = /[A-Za-z]:\\/;
 const UNC_PATH_PREFIX = /\\\\/;
-const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/+(?=\S)/;
+const WINDOWS_ROOTED_PATH_PREFIX = /(?:^|[^A-Za-z0-9\\])\\(?!\\)(?=$|\S)/;
+const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/(?=$|\S)/;
+const VALID_PERCENT_OCTET = /%[0-9A-Fa-f]{2}/;
+const BOUNDARY_PERCENT_ATTEMPT = /(?:^|[^\p{L}\p{N}_])%(?=\S{2})/u;
+const MAX_PERCENT_DECODE_DEPTH = 8;
 const SESSION_OR_THREAD_KEY =
   /(?:["']?(?:session|thread)(?:[ _.-]?(?:id|identifier))?["']?\s*[:=]|["']?(?:session|thread)[ _.-]?(?:id|identifier)["']?\s+\S)/i;
 const STDERR_KEY =
@@ -60,37 +64,53 @@ function hasAbsoluteFilesystemPath(value: string): boolean {
   return (
     WINDOWS_PATH_PREFIX.test(value) ||
     UNC_PATH_PREFIX.test(value) ||
+    WINDOWS_ROOTED_PATH_PREFIX.test(value) ||
     POSIX_PATH_PREFIX.test(value)
   );
 }
 
+function decodePercentEncoded(value: string): string | undefined {
+  let decoded = value;
+
+  for (let depth = 0; VALID_PERCENT_OCTET.test(decoded); depth += 1) {
+    if (depth === MAX_PERCENT_DECODE_DEPTH) return undefined;
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) return decoded;
+      decoded = next;
+    } catch {
+      return undefined;
+    }
+  }
+
+  return BOUNDARY_PERCENT_ATTEMPT.test(decoded) ? undefined : decoded;
+}
+
 function hasEncodedAbsoluteFilesystemPathOutsideHttpUrls(value: string): boolean {
   const detectionView = value.replace(ORDINARY_HTTP_URL, "");
-  if (!/%(?=\S{2})/.test(detectionView)) return false;
-
-  try {
-    return hasAbsoluteFilesystemPath(decodeURIComponent(detectionView));
-  } catch {
-    return true;
-  }
+  const decoded = decodePercentEncoded(detectionView);
+  return decoded === undefined || hasAbsoluteFilesystemPath(decoded);
 }
 
 function hasFilesystemUrlData(component: string): boolean {
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(component);
-  } catch {
-    return true;
-  }
+  const decoded = decodePercentEncoded(component);
+  if (decoded === undefined) return true;
 
   if (hasAbsoluteFilesystemPath(decoded)) return true;
 
   try {
     return [...new URLSearchParams(component)].some(
-      ([name, value]) =>
-        SENSITIVE_HTTP_PARAMETER_KEY.test(name) ||
-        hasAbsoluteFilesystemPath(name) ||
-        hasAbsoluteFilesystemPath(value),
+      ([name, value]) => {
+        const decodedName = decodePercentEncoded(name);
+        const decodedValue = decodePercentEncoded(value);
+        return (
+          decodedName === undefined ||
+          decodedValue === undefined ||
+          SENSITIVE_HTTP_PARAMETER_KEY.test(decodedName) ||
+          hasAbsoluteFilesystemPath(decodedName) ||
+          hasAbsoluteFilesystemPath(decodedValue)
+        );
+      },
     );
   } catch {
     return true;

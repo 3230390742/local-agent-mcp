@@ -23,6 +23,8 @@ describe("sanitizePublicText", () => {
     "//server/share/private",
     "path:/opt/private/a.ts",
     "\\\\server\\share\\a.txt",
+    "\\Users\\alice\\secret.txt",
+    "/",
   ])("removes arbitrary absolute path %s", (raw) => {
     expect(sanitizePublicText(raw, "D:\\Users\\alice\\demo")).not.toContain(
       raw,
@@ -33,6 +35,7 @@ describe("sanitizePublicText", () => {
     "%2Fetc%2Fhosts",
     "C%3A%5CUsers%5Calice%5Csecret.txt",
     "%5C%5Cserver%5Cshare%5Csecret.txt",
+    "%5CUsers%5Calice%5Csecret.txt",
   ])("neutralizes a standalone percent-encoded absolute path %s", (raw) => {
     expect(sanitizePublicText(raw, "D:\\Users\\alice\\demo")).toBe("[REDACTED]");
   });
@@ -42,6 +45,18 @@ describe("sanitizePublicText", () => {
   });
 
   it.each([
+    "%252Fetc%252Fhosts",
+    "%25252Fetc%25252Fhosts",
+    "C%253A%255CUsers%255Calice%255Csecret.txt",
+    "C%25253A%25255CUsers%25255Calice%25255Csecret.txt",
+    "%255C%255Cserver%255Cshare%255Csecret.txt",
+    "%25255C%25255Cserver%25255Cshare%25255Csecret.txt",
+  ])("neutralizes a recursively percent-encoded standalone absolute path %s", (raw) => {
+    expect(sanitizePublicText(raw, "D:\\Users\\alice\\demo")).toBe("[REDACTED]");
+  });
+
+  it.each([
+    "Coverage is 100%complete",
     "Review confidence: 100% approved.",
     "Review confidence: 100%",
   ])("preserves ordinary percentage prose %s", (text) => {
@@ -164,6 +179,9 @@ describe("sanitizePublicText", () => {
     "https://example.test/view?next=/etc/hosts",
     "https://example.test/view#return=/etc/hosts",
     "https://example.test/view?next=%2Fetc%2Fhosts",
+    "https://example.test/view?next=%252Fetc%252Fhosts",
+    "https://example.test/view#next=C%253A%255CUsers%255Calice%255Csecret.txt",
+    "https://example.test/view?next=%25255C%25255Cserver%25255Cshare%25255Csecret.txt",
     "https://github.com/acme/prompt-tools#%2Fetc%2Fhosts",
     "https://github.com/acme/prompt-tools?%2Fetc%2Fhosts",
     "https://example.test/view#path=%2Fetc%2Fhosts",

@@ -42,12 +42,19 @@ describe("auditManifest", () => {
   it.each([
     ["write enabled", (value: MutationTarget) => { value.policy.writeAllowed = true; }],
     ["Windows path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "D:\\Users\\alice\\secret.txt"; }],
+    ["Windows rooted path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "\\Users\\alice\\secret.txt"; }],
     ["POSIX path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "/etc/hosts"; }],
+    ["POSIX root", (value: MutationTarget) => { value.comparison.codex.finalMessage = "/"; }],
     ["POSIX path assignment", (value: MutationTarget) => { value.comparison.codex.finalMessage = "prefix=/etc/hosts"; }],
     ["UNC path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "\\\\server\\share\\secret.txt"; }],
     ["percent-encoded POSIX path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%2Fetc%2Fhosts"; }],
     ["percent-encoded Windows path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "C%3A%5CUsers%5Calice%5Csecret.txt"; }],
     ["percent-encoded UNC path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%5C%5Cserver%5Cshare%5Csecret.txt"; }],
+    ["percent-encoded Windows rooted path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%5CUsers%5Calice%5Csecret.txt"; }],
+    ["double-encoded POSIX path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%252Fetc%252Fhosts"; }],
+    ["triple-encoded Windows path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "C%25253A%25255CUsers%25255Calice%25255Csecret.txt"; }],
+    ["double-encoded UNC path", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%255C%255Cserver%255Cshare%255Csecret.txt"; }],
+    ["invalid standalone percent encoding", (value: MutationTarget) => { value.comparison.codex.finalMessage = "%ZZ"; }],
     ["session id", (value: MutationTarget) => { value.comparison.codex.finalMessage = "ses_private"; }],
     ["thread id", (value: MutationTarget) => { value.comparison.codex.finalMessage = "019f2918-9644-7480-867c-c993bf84dfd7"; }],
     ["token", (value: MutationTarget) => { value.comparison.codex.finalMessage = "sk-proj-ABCDEFGHIJKLMNOP1234567890"; }],
@@ -154,6 +161,27 @@ describe("auditManifest", () => {
       value.comparison.codex.finalMessage = sensitiveUrl;
       expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
     }
+  });
+
+  it.each([
+    "https://example.test/view?next=%252Fetc%252Fhosts",
+    "https://example.test/view#next=C%253A%255CUsers%255Calice%255Csecret.txt",
+    "https://example.test/view?next=%25255C%25255Cserver%25255Cshare%25255Csecret.txt",
+  ])("rejects recursively encoded filesystem data in an HTTP(S) URL: %s", (url) => {
+    const value = validManifest();
+    value.comparison.codex.finalMessage = url;
+    expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
+  });
+
+  it.each([
+    "Coverage is 100%complete",
+    "Review confidence: 100% approved.",
+    "Review confidence: 100%",
+    "Decision: approve / defer",
+  ])("keeps ordinary percentage and slash prose publishable: %s", (text) => {
+    const value = validManifest();
+    value.comparison.codex.finalMessage = text;
+    expect(() => auditManifest(value)).not.toThrow();
   });
 
   it("rejects a changed manifest through the receipt hash", async () => {
