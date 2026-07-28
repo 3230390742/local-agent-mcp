@@ -3,7 +3,7 @@ import { redact } from "../redaction.js";
 const WINDOWS_ABSOLUTE = /[A-Za-z]:\\(?:[^\s"'<>|]+\\)*[^\s"'<>|]*/g;
 const UNC_ABSOLUTE = /\\\\[^\s"'<>|\\]+(?:\\[^\s"'<>|\\]+)+/g;
 const SESSION_ID = /\b(?:ses_[A-Za-z0-9_-]+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/gi;
-const AUTHORIZATION_KEY = /["']?authorization["']?\s*[:=]/i;
+const AUTHORIZATION_KEY = /["']?(?:proxy[ _-])?authorization["']?\s*[:=]/i;
 const URI_USERINFO = /\b[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s/@]*@/i;
 const LOCAL_FILE_URI = /\bfile:\/\//i;
 const ORDINARY_HTTP_URL = /\bhttps?:\/\/[^\s"'<>|]+/gi;
@@ -15,7 +15,7 @@ const SESSION_OR_THREAD_KEY =
 const STDERR_KEY =
   /\b(?:stderr|standard error)(?:[ _-](?:output|stream)(?:\s*\([^\r\n()]{1,80}\))?)?\s*[:=-]/i;
 const PROMPT_KEY =
-  /\b(?:(?:user|system|developer)[ _-])?prompt(?:\.(?:input|text|content|value))?(?:\s*[:=-]|\s+\S)/i;
+  /\b(?:(?:user|system|developer)[ _-])?prompt(?:[._-]?(?:input|text|content|value|preview))?(?:\s*[:=-]|\s+\S)/i;
 const REVIEWED_PROMPT_STATUS =
   /^\s*prompt(?:\s+review)?\s+(?:complete|passed|approved)\.?\s*$/i;
 const PRIVATE_KEY_BLOCK =

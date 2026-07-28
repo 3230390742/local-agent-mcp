@@ -79,11 +79,14 @@ describe("sanitizePublicText", () => {
     "Authorization: Digest username=alice, realm=private, response=credential",
     '"Authorization": "Bearer credential~with-punctuation"',
     "Authorization: UnknownScheme username=bob credential=private-value",
+    "Proxy-Authorization: Basic dXNlcjpwYXNz",
+    "proxy_authorization: Basic dXNlcjpwYXNz",
+    "proxy authorization=Basic dXNlcjpwYXNz",
   ])("neutralizes every authorization header shape through the line", (header) => {
     const output = sanitizePublicText(`${header}\npublic review`, "D:\\demo");
     expect(output).toBe("[REDACTED]\npublic review");
     expect(output).not.toMatch(
-      /authorization|digest|bearer|unknownscheme|alice|bob|credential/i,
+      /proxy|authorization|digest|bearer|basic|unknownscheme|alice|bob|credential|dXNlcjpwYXNz/i,
     );
   });
 
@@ -251,6 +254,10 @@ describe("sanitizePublicText", () => {
   it.each([
     "Prompt: reset production database",
     "prompt=private input",
+    "prompt_preview: private preview",
+    "promptPreview=private preview",
+    "user_prompt_preview: private preview",
+    "system-promptPreview=private preview",
     "User Prompt - private request",
     "user_prompt: private request",
     "system-prompt=private instruction",
