@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { sanitizePublicText } from "../../src/publication/sanitize.js";
+
+const { mockUserInfo } = vi.hoisted(() => ({
+  mockUserInfo: vi.fn(() => ({ username: "" })),
+}));
+
+vi.mock("node:os", () => ({ userInfo: mockUserInfo }));
 
 describe("sanitizePublicText", () => {
   it.each([
@@ -133,6 +139,9 @@ describe("sanitizePublicText", () => {
   it.each([
     "https://example.test/view?path=/home/alice/private.txt",
     "https://example.test/view#path=/home/alice/private.txt",
+    "https://example.test/view?next=/etc/hosts",
+    "https://example.test/view#return=/etc/hosts",
+    "https://example.test/view?next=%2Fetc%2Fhosts",
   ])("neutralizes an HTTP URL with filesystem data in query or fragment", (url) => {
     expect(sanitizePublicText(url, "D:\\demo")).toBe("[REDACTED]");
   });
@@ -154,6 +163,47 @@ describe("sanitizePublicText", () => {
       } else {
         process.env.USERNAME = originalUsername;
       }
+    }
+  });
+
+  it("redacts an OS-provided one-character username only at token boundaries", () => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "a" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      expect(
+        sanitizePublicText(
+          "a catalog review is approved",
+          "D:\\code\\local-agent-mcp\\fixtures\\public-demo",
+        ),
+      ).toBe("<local-username> catalog review is approved");
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
+  it("continues when the OS account lookup fails", () => {
+    mockUserInfo.mockImplementationOnce(() => {
+      throw new Error("OS account lookup failed");
+    });
+
+    try {
+      expect(
+        sanitizePublicText(
+          "public review",
+          "D:\\code\\local-agent-mcp\\fixtures\\public-demo",
+        ),
+      ).toBe("public review");
+      expect(mockUserInfo).toHaveBeenCalledTimes(1);
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "" });
     }
   });
 
@@ -212,10 +262,10 @@ describe("sanitizePublicText", () => {
     );
   });
 
-  it("preserves ordinary slash-separated decision text and URL query paths", () => {
+  it("preserves ordinary slash-separated decision text and non-absolute URL query paths", () => {
     const text = [
       "Decision: approve / defer",
-      "https://example.com/login?next=/reviews/42",
+      "https://example.com/login?next=reviews/42",
     ].join("\n");
 
     expect(sanitizePublicText(text, "D:\\demo")).toBe(text);

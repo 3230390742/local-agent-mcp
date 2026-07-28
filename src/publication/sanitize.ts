@@ -1,3 +1,4 @@
+import { userInfo } from "node:os";
 import { redact } from "../redaction.js";
 
 const WINDOWS_ABSOLUTE = /[A-Za-z]:\\(?:[^\s"'<>|]+\\)*[^\s"'<>|]*/g;
@@ -10,8 +11,6 @@ const ORDINARY_HTTP_URL = /\bhttps?:\/\/[^\s"'<>|]+/gi;
 const WINDOWS_PATH_PREFIX = /[A-Za-z]:\\/;
 const UNC_PATH_PREFIX = /\\\\/;
 const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/+(?=\S)/;
-const URL_FILESYSTEM_FIELD =
-  /(?:^|[._-])(?:path|file|filename|directory|dir|cwd|root)s?$/i;
 const SESSION_OR_THREAD_KEY =
   /(?:["']?(?:session|thread)(?:[ _.-]?(?:id|identifier))?["']?\s*[:=]|["']?(?:session|thread)[ _.-]?(?:id|identifier)["']?\s+\S)/i;
 const STDERR_KEY =
@@ -31,11 +30,19 @@ function localUsernames(privateRoot: string): string[] {
   const usernames = new Set<string>();
   const windowsMatch = /(?:^|\\)Users\\([^\\]+)/i.exec(privateRoot);
   const posixMatch = /(?:^|\/)(?:home|Users)\/([^/]+)/i.exec(privateRoot);
-  const osUsername = process.env.USERNAME ?? process.env.USER;
+  let osUsername: string | undefined;
+
+  try {
+    osUsername = userInfo().username;
+  } catch {
+    osUsername = undefined;
+  }
 
   if (windowsMatch?.[1]) usernames.add(windowsMatch[1]);
   if (posixMatch?.[1]) usernames.add(posixMatch[1]);
   if (osUsername) usernames.add(osUsername);
+  if (process.env.USERNAME) usernames.add(process.env.USERNAME);
+  if (process.env.USER) usernames.add(process.env.USER);
   return [...usernames];
 }
 
@@ -60,9 +67,8 @@ function hasFilesystemUrlData(component: string): boolean {
     return true;
   }
 
-  return [...new URLSearchParams(component)].some(
-    ([key, value]) =>
-      URL_FILESYSTEM_FIELD.test(key) && hasAbsoluteFilesystemPath(value),
+  return [...new URLSearchParams(component)].some(([, value]) =>
+    hasAbsoluteFilesystemPath(value),
   );
 }
 
