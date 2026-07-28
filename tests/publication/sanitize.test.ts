@@ -145,6 +145,16 @@ describe("sanitizePublicText", () => {
     expect(output).not.toContain("thr_private_123");
   });
 
+  it.each([
+    "sessionIdentifier=opaque-123",
+    "thread_identifier: private-run",
+    "Thread Identifier opaque-123",
+    '"sessionIdentifier": "opaque-123"',
+  ])("neutralizes labeled session or thread identifier variants %s", (label) => {
+    const output = sanitizePublicText(`${label}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+  });
+
   it("preserves ordinary slash-separated decision text and URL query paths", () => {
     const text = [
       "Decision: approve / defer",
@@ -179,13 +189,33 @@ describe("sanitizePublicText", () => {
     );
   });
 
-  it.each(["stderr: internal failure", "stderr=internal failure"])(
+  it("preserves ordinary session identification prose", () => {
+    expect(sanitizePublicText("session identification review", "D:\\demo")).toBe(
+      "session identification review",
+    );
+  });
+
+  it.each([
+    "stderr: internal failure",
+    "stderr=internal failure",
+    "stderr - internal compiler diagnostic",
+    "STDERR - INTERNAL COMPILER DIAGNOSTIC",
+  ])(
     "neutralizes stderr-labeled line %s",
     (line) => {
       const output = sanitizePublicText(`${line}\npublic review`, "D:\\demo");
       expect(output).toBe("[REDACTED]\npublic review");
     },
   );
+
+  it.each([
+    "Prompt: reset production database",
+    "prompt=private input",
+    "User Prompt - private request",
+  ])("neutralizes prompt-labeled line %s", (line) => {
+    const output = sanitizePublicText(`${line}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+  });
 
   it.each([
     "PRIVATE KEY",

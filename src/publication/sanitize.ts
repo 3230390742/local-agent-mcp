@@ -11,8 +11,9 @@ const WINDOWS_PATH_PREFIX = /[A-Za-z]:\\/;
 const UNC_PATH_PREFIX = /\\\\/;
 const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/(?![/\s])/;
 const SESSION_OR_THREAD_KEY =
-  /(?:["']?(?:session|thread)(?:[ _-]?id)?["']?\s*[:=]|["']?(?:session|thread)[ _-]id["']?\s+\S)/i;
-const STDERR_KEY = /\bstderr\s*[:=]/i;
+  /(?:["']?(?:session|thread)(?:[ _-]?(?:id|identifier))?["']?\s*[:=]|["']?(?:session|thread)[ _-]?(?:id|identifier)["']?\s+\S)/i;
+const STDERR_KEY = /\bstderr\s*[:=-]/i;
+const PROMPT_KEY = /\b(?:user\s+)?prompt\s*[:=-]/i;
 const PRIVATE_KEY_BLOCK =
   /-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY-----[\s\S]*?(?:-----END (?:[A-Z0-9]+ )?PRIVATE KEY-----|$)/g;
 
@@ -54,7 +55,8 @@ function neutralizeSensitiveLines(text: string): string {
     LOCAL_FILE_URI.test(line) ||
     hasAbsoluteLocalPath(line) ||
     SESSION_OR_THREAD_KEY.test(line) ||
-    STDERR_KEY.test(line)
+    STDERR_KEY.test(line) ||
+    PROMPT_KEY.test(line)
       ? "[REDACTED]"
       : line,
   );
