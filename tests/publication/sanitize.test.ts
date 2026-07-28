@@ -106,6 +106,22 @@ describe("sanitizePublicText", () => {
   });
 
   it.each([
+    "ftp://alice:secret@example.test/review trailing private text",
+    "CuStOm+V1://alice@example.test/review trailing private text",
+  ])("neutralizes non-HTTP URI userinfo line %s", (line) => {
+    const output = sanitizePublicText(`${line}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+  });
+
+  it.each([
+    "file:///etc/hosts trailing private text",
+    "file:///C:/Users/alice/private.txt trailing private text",
+  ])("neutralizes local file URI line %s", (line) => {
+    const output = sanitizePublicText(`${line}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+  });
+
+  it.each([
     "sessionId=opaque-123",
     "session_id=opaque-123",
     "session-id=opaque-123",
@@ -140,6 +156,21 @@ describe("sanitizePublicText", () => {
   ])("neutralizes whitespace-separated session or thread label %s", (label) => {
     const output = sanitizePublicText(`${label}\npublic review`, "D:\\demo");
     expect(output).toBe("[REDACTED]\npublic review");
+  });
+
+  it.each([
+    "Session ID opaque-123",
+    "Thread ID private-run",
+    '"Session ID" "opaque-123"',
+  ])("neutralizes delimiter-free explicit session or thread ID %s", (label) => {
+    const output = sanitizePublicText(`${label}\npublic review`, "D:\\demo");
+    expect(output).toBe("[REDACTED]\npublic review");
+  });
+
+  it("preserves bare session review prose", () => {
+    expect(sanitizePublicText("session review", "D:\\demo")).toBe(
+      "session review",
+    );
   });
 
   it.each(["stderr: internal failure", "stderr=internal failure"])(
