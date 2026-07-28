@@ -112,14 +112,21 @@ describe("auditManifest", () => {
     }
   });
 
-  it.each(["key", "secret", "password", "provider", "credential", "credentials"])(
-    "rejects the %s credential-shaped assignment label",
-    (label) => {
-      const value = validManifest();
-      value.comparison.codex.finalMessage = `${label}=super-secret-value`;
-      expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
-    },
-  );
+  it.each([
+    ["unquoted key", "key=super-secret-value"],
+    ["unquoted secret", "secret=super-secret-value"],
+    ["unquoted password", "password=super-secret-value"],
+    ["unquoted provider", "provider=super-secret-value"],
+    ["unquoted credential", "credential=super-secret-value"],
+    ["unquoted credentials", "credentials=super-secret-value"],
+    ["double-quoted credential", '{"credential":"super-secret-value"}'],
+    ["single-quoted provider", "{'provider':'super-secret-value'}"],
+    ["mixed-quoted credentials", '{"credentials\':"super-secret-value"}'],
+  ])("rejects %s credential-shaped assignment", (_name, credentialText) => {
+    const value = validManifest();
+    value.comparison.codex.finalMessage = credentialText;
+    expect(() => auditManifest(value)).toThrow("public artifact contains forbidden data");
+  });
 
   it("does not apply prompt labels inside HTTP(S) URL spans", () => {
     const ordinaryUrl = validManifest();
@@ -148,6 +155,21 @@ describe("auditManifest", () => {
     await writeFile(manifestPath, canonicalJson(manifest), "utf8");
     await expect(auditPublishedDemo(manifestPath, receiptPath)).rejects.toThrow("manifest hash mismatch");
     expect(await readFile(receiptPath, "utf8")).toContain("PUBLICATION_OK");
+  });
+
+  it("accepts a receipt file with the valid check set in reverse order", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "public-demo-"));
+    const manifestPath = path.join(dir, "manifest.json");
+    const receiptPath = path.join(dir, "receipt.json");
+    const manifest = validManifest();
+    const receipt = auditManifest(manifest);
+    await writeCanonicalJson(manifestPath, manifest);
+    await writeCanonicalJson(receiptPath, { ...receipt, checks: [...receipt.checks].reverse() });
+
+    await expect(auditPublishedDemo(manifestPath, receiptPath)).resolves.toEqual({
+      ...receipt,
+      checks: [...receipt.checks].reverse(),
+    });
   });
 
   it("requires the complete receipt contract", () => {

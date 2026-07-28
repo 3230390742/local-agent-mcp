@@ -13,7 +13,7 @@ const FORBIDDEN_LABELS = [
   /\b(?:raw[-_\s]?stderr|stderr)\b/i,
   /\b(?:unreviewed\s+)?prompt(?:[._-]?(?:input|text|content|value|preview))?\b/i,
 ];
-const CREDENTIAL_SHAPE = /(?:^|[^\p{L}\p{N}_])(?:key|api[_-]?key|secret|password|passwd|token|provider|credentials?)\s*[:=]\s*[^\s,}]+/iu;
+const CREDENTIAL_SHAPE = /(?:^|[^\p{L}\p{N}_])["']?(?:key|api[_-]?key|secret|password|passwd|token|provider|credentials?)["']?\s*[:=]\s*[^\s,}]+/iu;
 const HTTP_URL = /\bhttps?:\/\/[^\s"'<>|]+/gi;
 
 function labelsOutsideHttpUrls(value: string): string {
@@ -92,6 +92,8 @@ export async function auditPublishedDemo(manifestPath: string, receiptPath: stri
   const receipt = publicationReceiptSchema.parse(JSON.parse(await readFile(receiptPath, "utf8")));
   const expected = auditManifest(manifest);
   if (receipt.manifestSha256 !== expected.manifestSha256) throw new Error("manifest hash mismatch");
-  if (canonicalJson(receipt) !== canonicalJson(expected)) throw new Error("publication receipt mismatch");
+  const normalizedReceipt = { ...receipt, checks: [...receipt.checks].sort() };
+  const normalizedExpected = { ...expected, checks: [...expected.checks].sort() };
+  if (canonicalJson(normalizedReceipt) !== canonicalJson(normalizedExpected)) throw new Error("publication receipt mismatch");
   return receipt;
 }
