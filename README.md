@@ -346,6 +346,47 @@ affect your Codex or OpenCode installations or their logins.
 
 ---
 
+## Public demo evidence
+
+[`public-demo/demo-manifest.json`](./public-demo/demo-manifest.json) is generated
+from one real local, read-only Codex and OpenCode run against the fixed
+[`fixtures/public-demo`](./fixtures/public-demo) scenario. The companion
+[`publication-receipt.json`](./public-demo/publication-receipt.json) binds the
+manifest's SHA-256 digest to the complete publication audit.
+
+The two model outputs are shown without ranking and are not benchmark scores.
+They are review evidence for the same small input-validation fixture.
+
+## Privacy boundary
+
+The deployed portfolio imports these two reviewed JSON files as a static replay.
+It cannot call Codex or OpenCode, spawn a CLI, accept a prompt, proxy a request,
+or access local Agent credentials. Real execution remains on the local machine.
+
+The publication audit rejects write-enabled policy, absolute paths, local
+usernames, credential-shaped values, auth headers, session/thread identifiers,
+raw stderr, unreviewed prompts, failed Agent runs, and incomplete verification.
+
+## Verification
+
+Run the complete local quality gate:
+
+```bash
+npm run check
+```
+
+To verify only the committed replay bundle:
+
+```bash
+npm run demo:audit
+```
+
+`demo:audit` validates the schema, privacy boundary, read-only policy, complete
+test totals, receipt checks, and manifest hash without requiring either Agent
+login. CI runs this offline audit and never invokes `demo:record`.
+
+---
+
 ## License
 
 MIT
