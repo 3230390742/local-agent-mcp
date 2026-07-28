@@ -301,6 +301,29 @@ describe("sanitizePublicText", () => {
     }
   });
 
+  it("redacts exact one-character username case and whitespace variants", () => {
+    const originalUsername = process.env.USERNAME;
+    const originalUser = process.env.USER;
+    mockUserInfo.mockReturnValue({ username: "a" });
+    delete process.env.USERNAME;
+    delete process.env.USER;
+
+    try {
+      for (const value of ["a", "A", " a ", "\tA\n"]) {
+        expect(sanitizePublicText(value, "D:\\demo")).toBe("<local-username>");
+      }
+      expect(sanitizePublicText("review by a maintainer with A grade", "D:\\demo")).toBe(
+        "review by a maintainer with A grade",
+      );
+    } finally {
+      mockUserInfo.mockReset().mockReturnValue({ username: "" });
+      if (originalUsername === undefined) delete process.env.USERNAME;
+      else process.env.USERNAME = originalUsername;
+      if (originalUser === undefined) delete process.env.USER;
+      else process.env.USER = originalUser;
+    }
+  });
+
   it("protects an exact one-character username and URL or path provenance", () => {
     const originalUsername = process.env.USERNAME;
     const originalUser = process.env.USER;

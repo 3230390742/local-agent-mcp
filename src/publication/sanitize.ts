@@ -33,6 +33,10 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+export function isExactUsernameValue(value: string, username: string): boolean {
+  return new RegExp(`^${escapeRegExp(username)}$`, "iu").test(value.trim());
+}
+
 function localUsernames(privateRoot: string): string[] {
   const usernames = new Set<string>();
   const windowsMatch = /(?:^|\\)Users\\([^\\]+)/i.exec(privateRoot);
@@ -55,7 +59,7 @@ function localUsernames(privateRoot: string): string[] {
 
 function redactUsername(text: string, username: string): string {
   if (username.length === 1) {
-    return text === username ? "<local-username>" : text;
+    return isExactUsernameValue(text, username) ? "<local-username>" : text;
   }
 
   const token = usernameTokenPattern(username);

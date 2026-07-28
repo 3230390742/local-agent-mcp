@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { userInfo } from "node:os";
 import { canonicalJson, sha256Text } from "./canonical.js";
-import { sanitizePublicText } from "./sanitize.js";
+import { isExactUsernameValue, sanitizePublicText } from "./sanitize.js";
 import {
   PUBLIC_COMPARISON_NOTE,
   publicationReceiptSchema,
@@ -29,7 +29,7 @@ function assertPublicStrings(value: unknown, path: string[] = []): void {
     const isLockedNote = isSchemaLockedComparisonNote(value, path);
     let currentUsername = "";
     try { currentUsername = userInfo().username; } catch { /* unavailable */ }
-    if (!isLockedNote && currentUsername && value.trim() === currentUsername) {
+    if (!isLockedNote && currentUsername && isExactUsernameValue(value, currentUsername)) {
       throw new Error("public artifact contains forbidden data");
     }
     const sanitized = sanitizePublicText(value, "");

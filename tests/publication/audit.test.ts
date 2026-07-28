@@ -124,7 +124,7 @@ describe("auditManifest", () => {
 
     try {
       const value = validManifest();
-      value.comparison.codex.finalMessage = "review by a maintainer with a 4xx error";
+      value.comparison.codex.finalMessage = "review by a maintainer with A grade";
       expect(() => auditManifest(value)).not.toThrow();
     } finally {
       mockUserInfo.mockReset().mockReturnValue({ username: "fixture-local-user" });
@@ -137,6 +137,9 @@ describe("auditManifest", () => {
 
   it.each([
     "a",
+    "A",
+    " a ",
+    "\tA\n",
     "username: a",
     "user=a",
     "account: a",
