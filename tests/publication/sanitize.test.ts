@@ -116,12 +116,11 @@ describe("sanitizePublicText", () => {
     expect(output).not.toMatch(/alice|secret|@example\.com|trailing private text/i);
   });
 
-  it("preserves HTTP URL spans while masking a root-derived username in prose", () => {
+  it("neutralizes an HTTP URL containing a root-derived username", () => {
     const root = "D:\\Users\\alice\\demo";
-    const prose = "alice reviewed https://alice.example/review and public prose.";
 
-    expect(sanitizePublicText(prose, root)).toBe(
-      "<local-username> reviewed https://alice.example/review and public prose.",
+    expect(sanitizePublicText("https://alice.example/review", root)).toBe(
+      "[REDACTED]",
     );
     expect(
       sanitizePublicText(
@@ -129,6 +128,33 @@ describe("sanitizePublicText", () => {
         root,
       ),
     ).toBe("[REDACTED]\npublic review");
+  });
+
+  it.each([
+    "https://example.test/view?path=/home/alice/private.txt",
+    "https://example.test/view#path=/home/alice/private.txt",
+  ])("neutralizes an HTTP URL with filesystem data in query or fragment", (url) => {
+    expect(sanitizePublicText(url, "D:\\demo")).toBe("[REDACTED]");
+  });
+
+  it("redacts the configured local username with the fixed scenario root", () => {
+    const originalUsername = process.env.USERNAME;
+    process.env.USERNAME = "fixture-local-user";
+
+    try {
+      expect(
+        sanitizePublicText(
+          "fixture-local-user reviewed the result",
+          "D:\\code\\local-agent-mcp\\fixtures\\public-demo",
+        ),
+      ).toBe("<local-username> reviewed the result");
+    } finally {
+      if (originalUsername === undefined) {
+        delete process.env.USERNAME;
+      } else {
+        process.env.USERNAME = originalUsername;
+      }
+    }
   });
 
   it.each([

@@ -10,6 +10,8 @@ const ORDINARY_HTTP_URL = /\bhttps?:\/\/[^\s"'<>|]+/gi;
 const WINDOWS_PATH_PREFIX = /[A-Za-z]:\\/;
 const UNC_PATH_PREFIX = /\\\\/;
 const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/+(?=\S)/;
+const URL_FILESYSTEM_FIELD =
+  /(?:^|[._-])(?:path|file|filename|directory|dir|cwd|root)s?$/i;
 const SESSION_OR_THREAD_KEY =
   /(?:["']?(?:session|thread)(?:[ _.-]?(?:id|identifier))?["']?\s*[:=]|["']?(?:session|thread)[ _.-]?(?:id|identifier)["']?\s+\S)/i;
 const STDERR_KEY =
@@ -29,9 +31,11 @@ function localUsernames(privateRoot: string): string[] {
   const usernames = new Set<string>();
   const windowsMatch = /(?:^|\\)Users\\([^\\]+)/i.exec(privateRoot);
   const posixMatch = /(?:^|\/)(?:home|Users)\/([^/]+)/i.exec(privateRoot);
+  const osUsername = process.env.USERNAME ?? process.env.USER;
 
   if (windowsMatch?.[1]) usernames.add(windowsMatch[1]);
   if (posixMatch?.[1]) usernames.add(posixMatch[1]);
+  if (osUsername) usernames.add(osUsername);
   return [...usernames];
 }
 
@@ -43,20 +47,46 @@ function redactUsername(text: string, username: string): string {
   return text.replace(token, "$1<local-username>");
 }
 
-function redactUsernameOutsideHttpUrls(text: string, username: string): string {
-  let output = "";
-  let lastIndex = 0;
+function hasAbsoluteFilesystemPath(value: string): boolean {
+  return (
+    WINDOWS_PATH_PREFIX.test(value) ||
+    UNC_PATH_PREFIX.test(value) ||
+    POSIX_PATH_PREFIX.test(value)
+  );
+}
 
-  for (const match of text.matchAll(ORDINARY_HTTP_URL)) {
-    const urlIndex = match.index;
-    if (urlIndex === undefined) continue;
-
-    output += redactUsername(text.slice(lastIndex, urlIndex), username);
-    output += match[0];
-    lastIndex = urlIndex + match[0].length;
+function hasFilesystemUrlData(component: string): boolean {
+  if (component.startsWith("/") && hasAbsoluteFilesystemPath(component)) {
+    return true;
   }
 
-  return output + redactUsername(text.slice(lastIndex), username);
+  return [...new URLSearchParams(component)].some(
+    ([key, value]) =>
+      URL_FILESYSTEM_FIELD.test(key) && hasAbsoluteFilesystemPath(value),
+  );
+}
+
+function hasSensitiveHttpUrl(text: string, usernames: string[]): boolean {
+  for (const match of text.matchAll(ORDINARY_HTTP_URL)) {
+    const rawUrl = match[0];
+    if (usernames.some((username) => redactUsername(rawUrl, username) !== rawUrl)) {
+      return true;
+    }
+
+    try {
+      const url = new URL(rawUrl);
+      if (
+        hasFilesystemUrlData(url.search) ||
+        hasFilesystemUrlData(url.hash.slice(1))
+      ) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function hasAbsoluteLocalPath(line: string): boolean {
@@ -68,12 +98,13 @@ function hasAbsoluteLocalPath(line: string): boolean {
   );
 }
 
-function neutralizeSensitiveLines(text: string): string {
+function neutralizeSensitiveLines(text: string, usernames: string[]): string {
   return text.replace(/[^\r\n]+/g, (line) =>
     AUTHORIZATION_KEY.test(line) ||
     URI_USERINFO.test(line) ||
     LOCAL_FILE_URI.test(line) ||
     hasAbsoluteLocalPath(line) ||
+    hasSensitiveHttpUrl(line, usernames) ||
     SESSION_OR_THREAD_KEY.test(line) ||
     STDERR_KEY.test(line) ||
     (PROMPT_KEY.test(line) && !REVIEWED_PROMPT_STATUS.test(line))
@@ -86,8 +117,9 @@ export function sanitizePublicText(
   value: unknown,
   privateRoot: string,
 ): string {
+  const usernames = localUsernames(privateRoot);
   let text = String(value ?? "").replace(PRIVATE_KEY_BLOCK, "[REDACTED]");
-  text = neutralizeSensitiveLines(text);
+  text = neutralizeSensitiveLines(text, usernames);
   text = redact(text);
   if (privateRoot) {
     text = text.replace(
@@ -97,8 +129,8 @@ export function sanitizePublicText(
   }
   text = text.replace(WINDOWS_ABSOLUTE, "<private-path>");
   text = text.replace(UNC_ABSOLUTE, "<private-path>");
-  for (const username of localUsernames(privateRoot)) {
-    text = redactUsernameOutsideHttpUrls(text, username);
+  for (const username of usernames) {
+    text = redactUsername(text, username);
   }
   text = text.replace(SESSION_ID, "<session-id>");
   return text.slice(0, 8_000);
