@@ -74,4 +74,19 @@ describe("recordPublicDemo", () => {
       dependencies: failing,
     })).rejects.toThrow("public scenario did not fully pass");
   });
+
+  it.each([
+    ["allowed roots", { allowedRoots: ["D:\\other"] }],
+    ["write mode", { writeAllowed: true }],
+    ["concurrency", { maxConcurrency: 3 }],
+  ])("rejects a health snapshot with mismatched %s", async (_name, change) => {
+    const mutated = { ...dependencies, health: async (ctx: Parameters<RecorderDependencies["health"]>[0]) => ({
+      ...await dependencies.health(ctx), ...change,
+    }) };
+    await expect(recordPublicDemo({
+      fixtureRoot: "D:\\Users\\alice\\demo", projectVersion: "1.0.0",
+      verification: { testFilesPassed: 1, testFilesTotal: 1, testsPassed: 1, testsTotal: 1, typecheck: "passed" },
+      dependencies: mutated,
+    })).rejects.toThrow("public scenario health policy mismatch");
+  });
 });

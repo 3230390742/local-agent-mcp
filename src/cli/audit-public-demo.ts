@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import path from "node:path";
 import { auditPublishedDemo } from "../publication/audit.js";
+import { formatAuditFailure } from "./errors.js";
 
 async function main(): Promise<void> {
   const root = process.cwd();
@@ -9,6 +10,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(`${formatAuditFailure(error)}\n`);
   process.exitCode = 1;
 });

@@ -111,26 +111,29 @@ export const publicDemoManifestSchema = z
     }
   });
 
+const RECEIPT_CHECKS = [
+  "schema",
+  "read_only",
+  "no_absolute_paths",
+  "no_credentials",
+  "no_session_ids",
+  "verification",
+  "source_revision",
+] as const;
+
 export const publicationReceiptSchema = z
   .object({
     schemaVersion: z.literal(1),
     status: z.literal("PUBLICATION_OK"),
     manifestSha256: z.string().regex(/^[0-9a-f]{64}$/),
-    checks: z
-      .array(
-        z.enum([
-          "schema",
-          "read_only",
-          "no_absolute_paths",
-          "no_credentials",
-          "no_session_ids",
-          "verification",
-          "source_revision",
-        ]),
-      )
-      .length(7),
+    checks: z.array(z.enum(RECEIPT_CHECKS)).length(RECEIPT_CHECKS.length),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    if (new Set(value.checks).size !== RECEIPT_CHECKS.length) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["checks"], message: "receipt checks must be an exact set" });
+    }
+  });
 
 export type PublicAgentRun = z.infer<typeof publicAgentRunSchema>;
 export type PublicDemoManifest = z.infer<typeof publicDemoManifestSchema>;

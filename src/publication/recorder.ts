@@ -39,6 +39,14 @@ export async function recordPublicDemo(options: RecordPublicDemoOptions): Promis
     options.dependencies.health(ctx),
     options.dependencies.compare({ prompt: PUBLIC_SCENARIO.prompt, cwd: options.fixtureRoot, parallel: true, timeout_seconds: 180 }, ctx),
   ]);
+  if (
+    health.allowedRoots.length !== 1 ||
+    health.allowedRoots[0] !== options.fixtureRoot ||
+    health.writeAllowed ||
+    health.maxConcurrency !== config.maxConcurrency
+  ) {
+    throw new Error("public scenario health policy mismatch");
+  }
   const comparison = projectComparison(privateComparison, options.fixtureRoot);
   if (comparison.codex.status !== "passed" || comparison.opencode.status !== "passed") {
     throw new Error("public scenario did not fully pass");

@@ -66,6 +66,12 @@ function validManifest(): Record<string, unknown> {
 }
 
 describe("public artifact schemas", () => {
+  const receipt = {
+    schemaVersion: 1,
+    status: "PUBLICATION_OK",
+    manifestSha256: "a".repeat(64),
+    checks: ["schema", "read_only", "no_absolute_paths", "no_credentials", "no_session_ids", "verification", "source_revision"],
+  };
   it("accepts the complete read-only manifest", () => {
     expect(publicDemoManifestSchema.parse(validManifest()).schemaVersion).toBe(1);
   });
@@ -99,5 +105,15 @@ describe("public artifact schemas", () => {
         checks: [],
       }),
     ).toThrow();
+  });
+
+  it("requires the exact receipt check set", () => {
+    expect(() => publicationReceiptSchema.parse({ ...receipt, checks: receipt.checks.slice(0, -1) })).toThrow();
+    expect(() => publicationReceiptSchema.parse({ ...receipt, checks: [...receipt.checks.slice(0, -1), "schema"] })).toThrow();
+    expect(() => publicationReceiptSchema.parse({ ...receipt, checks: [...receipt.checks.slice(0, -1), "unknown"] })).toThrow();
+  });
+
+  it("accepts the receipt check set in a different order", () => {
+    expect(() => publicationReceiptSchema.parse({ ...receipt, checks: [...receipt.checks].reverse() })).not.toThrow();
   });
 });

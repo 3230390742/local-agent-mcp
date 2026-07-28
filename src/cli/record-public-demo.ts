@@ -8,6 +8,7 @@ import { auditManifest } from "../publication/audit.js";
 import { writeCanonicalJson } from "../publication/canonical.js";
 import { recordPublicDemo } from "../publication/recorder.js";
 import { readVitestSummary } from "../publication/verification.js";
+import { formatRecordFailure } from "./errors.js";
 
 async function main(): Promise<void> {
   const root = process.cwd();
@@ -32,6 +33,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(`${formatRecordFailure(error)}\n`);
   process.exitCode = 1;
 });
