@@ -13,6 +13,8 @@ describe("sanitizePublicText", () => {
   it.each([
     "/workspace/demo/a.ts",
     "/etc/hosts",
+    "///etc/hosts",
+    "//server/share/private",
     "path:/opt/private/a.ts",
     "\\\\server\\share\\a.txt",
   ])("removes arbitrary absolute path %s", (raw) => {
@@ -218,9 +220,18 @@ describe("sanitizePublicText", () => {
     "user_prompt: private request",
     "system-prompt=private instruction",
     "developer prompt - private guidance",
+    "Prompt private instruction",
+    "User Prompt private request",
+    "system_prompt private instruction",
   ])("neutralizes prompt-labeled line %s", (line) => {
     const output = sanitizePublicText(`${line}\npublic review`, "D:\\demo");
     expect(output).toBe("[REDACTED]\npublic review");
+  });
+
+  it("preserves unrelated prompt prose", () => {
+    expect(sanitizePublicText("promptly reviewed", "D:\\demo")).toBe(
+      "promptly reviewed",
+    );
   });
 
   it.each([
