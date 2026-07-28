@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "local-agent-hub": {
+      "command": "node",
+      "args": ["./dist/index.js"],
+      "env": {
+        "AGENT_ALLOWED_ROOTS": "C:\\Users\\me\\projects,C:\\work",
+        "AGENT_ALLOW_WRITE": "false",
+        "AGENT_MAX_OUTPUT_BYTES": "5000000",
+        "AGENT_MAX_CONCURRENCY": "3",
+        "AGENT_DEBUG": "false"
+      }
+    }
+  }
+}

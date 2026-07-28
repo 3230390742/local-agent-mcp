@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.log
+.env
+.DS_Store
+coverage/
+.env
+.env.*
+!.env.example
+public-demo/.work/
+test-results/
+.worktrees/

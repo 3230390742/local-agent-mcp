@@ -1,0 +1,50 @@
+{
+  "name": "local-agent-mcp",
+  "version": "1.0.0",
+  "description": "Local MCP Agent Hub that lets Claude Code drive locally installed Codex CLI and OpenCode CLI via stdio MCP tools.",
+  "private": false,
+  "type": "module",
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "bin": {
+    "local-agent-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    ".env.example",
+    ".mcp.json.example"
+  ],
+  "scripts": {
+    "dev": "node --loader tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^20.14.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^4.0.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/3230390742/local-agent-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/3230390742/local-agent-mcp/issues"
+  },
+  "homepage": "https://github.com/3230390742/local-agent-mcp#readme"
+}
