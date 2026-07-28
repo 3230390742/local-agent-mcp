@@ -1,13 +1,13 @@
 import { redact } from "../redaction.js";
 
-const WINDOWS_ABSOLUTE = /\b[A-Za-z]:\\(?:[^\s"'<>|]+\\)*[^\s"'<>|]*/g;
+const WINDOWS_ABSOLUTE = /[A-Za-z]:\\(?:[^\s"'<>|]+\\)*[^\s"'<>|]*/g;
 const UNC_ABSOLUTE = /\\\\[^\s"'<>|\\]+(?:\\[^\s"'<>|\\]+)+/g;
 const SESSION_ID = /\b(?:ses_[A-Za-z0-9_-]+|[0-9a-f]{8}-[0-9a-f-]{27,})\b/gi;
 const AUTHORIZATION_KEY = /["']?authorization["']?\s*[:=]/i;
 const URI_USERINFO = /\b[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s/@]*@/i;
 const LOCAL_FILE_URI = /\bfile:\/\//i;
 const ORDINARY_HTTP_URL = /\bhttps?:\/\/[^\s"'<>|]+/gi;
-const WINDOWS_PATH_PREFIX = /\b[A-Za-z]:\\/;
+const WINDOWS_PATH_PREFIX = /[A-Za-z]:\\/;
 const UNC_PATH_PREFIX = /\\\\/;
 const POSIX_PATH_PREFIX = /(?:^|[^A-Za-z0-9/])\/(?![/\s])/;
 const SESSION_OR_THREAD_KEY =

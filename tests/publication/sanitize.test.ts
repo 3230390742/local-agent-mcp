@@ -21,6 +21,12 @@ describe("sanitizePublicText", () => {
     );
   });
 
+  it("neutralizes a Windows path immediately after an ASCII word character", () => {
+    expect(
+      sanitizePublicText("prefixD:\\Users\\alice\\other\\secret.txt", "D:\\demo"),
+    ).toBe("[REDACTED]");
+  });
+
   it.each([
     ["alice", "D:\\Users\\alice\\demo"],
     ["bob", "/home/bob/demo"],
